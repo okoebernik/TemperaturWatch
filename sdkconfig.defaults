@@ -1,0 +1,36 @@
+# Zielchip
+CONFIG_IDF_TARGET="esp32p4"
+
+# Das Waveshare-Board bestueckt einen ESP32-P4 der Revision v1.3 (per
+# esptool bestaetigt). ESP-IDF geht standardmaessig von Rev >= v3.1 aus
+# (spaetere Silizium-Revision) - ohne diese Option verweigert der
+# Bootloader mit "requires chip revision in range [v3.1 - v3.99]" den Start.
+# Gleiche Einstellung wie in Espressifs eigenem esp32p4v1-CI-Sdkconfig.
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+
+# 32 MB Flash, benutzerdefinierte Partitionstabelle
+CONFIG_ESPTOOLPY_FLASHSIZE_32MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# 32 MB PSRAM im Modul
+CONFIG_SPIRAM=y
+
+# OTA-Updates (Milestone 9): automatischer Rollback auf den vorherigen
+# Firmware-Slot, falls die neue Firmware beim Boot abstuerzt/haengt und sich
+# nicht selbst als "gueltig" markiert.
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+# Ethernet + interner EMAC fuer die IP101-PHY (Milestone 2)
+CONFIG_ETH_ENABLED=y
+CONFIG_ETH_USE_ESP32_EMAC=y
+
+# Hinweis Milestone 7 (SNMP): CONFIG_LWIP_SNMP existiert in ESP-IDF v5.5.4
+# NICHT mehr als Kconfig-Symbol (lwIP-SNMP-Quellcode ist zwar vorhanden unter
+# components/lwip/lwip/src/apps/snmp, aber nicht ueber Kconfig verdrahtet).
+# Aktivierung erfolgt dort ueber ein lwipopts.h-Override (LWIP_SNMP=1 etc.),
+# nicht ueber sdkconfig.
+
+# Hinweis Milestone 2 (WLAN/mDNS): mdns- und esp_wifi_remote/esp_hosted-Komponenten
+# werden dort per Component-Manager (idf_component.yml) hinzugefuegt; ihre
+# Kconfig-Symbole (z.B. CONFIG_MDNS_MAX_INTERFACES) existieren erst danach.

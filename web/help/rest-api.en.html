@@ -1,0 +1,1285 @@
+<h1 id="temperaturwatch-rest-api-reference">TemperaturWatch – REST API Reference</h1>
+<p>Complete reference for all <code>/api/...</code> endpoints of the TemperaturWatch firmware, including field descriptions, validation rules, example requests (<code>curl</code>), and example responses. For a quick overview, see the compact table in the <a href="../README.en.md#rest-api">README</a>; this document describes each endpoint in detail.</p>
+<h2 id="contents">Contents</h2>
+<ul><li><a href="#basics">Basics</a></li><li><a href="#authentication">Authentication</a></li><li><a href="#error-handling">Error handling</a></li><li><a href="#system">System</a></li><li><a href="#get-apisysteminfo"><code>GET /api/system/info</code></a></li><li><a href="#post-apisystemreboot"><code>POST /api/system/reboot</code></a></li><li><a href="#post-apisystemfactory-reset"><code>POST /api/system/factory-reset</code></a></li><li><a href="#post-apisystemota"><code>POST /api/system/ota</code></a></li><li><a href="#post-apisystemota-web"><code>POST /api/system/ota-web</code></a></li><li><a href="#get-apiboardpins"><code>GET /api/board/pins</code></a></li><li><a href="#sensors">Sensors</a></li><li><a href="#get-apisensors"><code>GET /api/sensors</code></a></li><li><a href="#get-apisensorsconfig"><code>GET /api/sensors/config</code></a></li><li><a href="#put-apisensorsconfig"><code>PUT /api/sensors/config</code></a></li><li><a href="#get-apisensorsdallas-scan"><code>GET /api/sensors/dallas-scan</code></a></li><li><a href="#digital-ios">Digital IOs</a></li><li><a href="#get-apiio"><code>GET /api/io</code></a></li><li><a href="#get-apiioconfig"><code>GET /api/io/config</code></a></li><li><a href="#put-apiioconfig"><code>PUT /api/io/config</code></a></li><li><a href="#post-apiioset"><code>POST /api/io/set</code></a></li><li><a href="#network">Network</a></li><li><a href="#get-apinetworkconfig"><code>GET /api/network/config</code></a></li><li><a href="#put-apinetworkconfig"><code>PUT /api/network/config</code></a></li><li><a href="#time-ntp">Time (NTP)</a></li><li><a href="#get-apitimeconfig"><code>GET /api/time/config</code></a></li><li><a href="#put-apitimeconfig"><code>PUT /api/time/config</code></a></li><li><a href="#mqtt">MQTT</a></li><li><a href="#get-apimqttconfig"><code>GET /api/mqtt/config</code></a></li><li><a href="#put-apimqttconfig"><code>PUT /api/mqtt/config</code></a></li><li><a href="#snmp">SNMP</a></li><li><a href="#get-apisnmpconfig"><code>GET /api/snmp/config</code></a></li><li><a href="#put-apisnmpconfig"><code>PUT /api/snmp/config</code></a></li><li><a href="#login-http-basic-auth">Login (HTTP Basic Auth)</a></li><li><a href="#get-apiauthconfig"><code>GET /api/auth/config</code></a></li><li><a href="#put-apiauthconfig"><code>PUT /api/auth/config</code></a></li><li><a href="#complete-workflow-example-script">Complete workflow (example script)</a></li></ul>
+<h2 id="basics">Basics</h2>
+<ul><li><strong>Base URL:</strong> <code>http://&lt;ip-address&gt;</code> or <code>http://&lt;hostname&gt;.local</code> (mDNS, default <code>temperaturwatch.local</code>). No separate API port – the same instance of <code>esp_http_server</code> also serves the web UI.</li><li><strong>Content type:</strong> All <code>GET</code> responses and JSON <code>PUT</code>/<code>POST</code> bodies are <code>application/json</code>. The exceptions are <code>POST /api/system/ota</code> and <code>POST /api/system/ota-web</code>, which expect a raw binary (<code>.bin</code>) as the body (<code>application/octet-stream</code>, not JSON).</li><li><strong>Character set:</strong> UTF-8.</li><li><strong>Statefulness:</strong> The API is stateless (no session cookie); when login is enabled, <strong>every</strong> request is re-authenticated via HTTP Basic Auth.</li><li><strong>Config vs. live endpoints:</strong> For sensors and IOs there are two <code>GET</code> routes each: <code>/config</code> returns the <em>stored configuration</em> (what's edited in the web UI), while the route without <code>/config</code> (<code>/api/sensors</code>, <code>/api/io</code>) returns the <em>current live state</em> (readings or switch states, respectively).</li><li><strong>Full replacement on PUT:</strong> <code>/api/sensors/config</code> and <code>/api/io/config</code> always expect the <strong>complete array</strong> on <code>PUT</code>, not just the changed entry. Workflow for editing a single entry: fetch the current list via <code>GET</code> → modify/add/remove the desired entry in the list → send the <strong>entire</strong> array back via <code>PUT</code>. On a validation error <strong>nothing</strong> is saved (the existing configuration remains unchanged) – there is no partial update.</li></ul>
+<h2 id="authentication">Authentication</h2>
+<p>HTTP Basic Auth, globally enabled/disabled via "System" → "Web UI login" (default: <strong>disabled</strong>). When enabled, <strong>every</strong> <code>/api/...</code> route (and even the static web UI files) requires a valid <code>Authorization: Basic ...</code> header – there are no public exception routes.</p>
+<pre><code class="language-bash"># Without login (default)
+curl http://192.168.1.50/api/system/info
+
+# With login enabled
+curl -u admin:secret http://192.168.1.50/api/system/info</code></pre>
+<p>If the header is missing or the credentials are wrong, the firmware responds with <strong><code>401 Unauthorized</code></strong> and the header <code>WWW-Authenticate: Basic realm="TemperaturWatch"</code> (triggers the browser's native login dialog).</p>
+<h2 id="error-handling">Error handling</h2>
+<p>General scheme that applies to practically all endpoints (exceptions are noted under the respective endpoint):</p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Meaning</th>
+<th>Typical cause</th>
+</tr></thead><tbody>
+<tr>
+<td><code>200 OK</code></td>
+<td>Success. Body is JSON (usually <code>true</code> for pure write operations, or the requested object/array).</td>
+<td>–</td>
+</tr>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Invalid request body (missing/invalid JSON, missing required fields, validation error such as a GPIO conflict). Plain-text error message in the body (not JSON).</td>
+<td>Malformed configuration</td>
+</tr>
+<tr>
+<td><code>401 Unauthorized</code></td>
+<td>Login enabled, but missing/incorrect <code>Authorization</code> header.</td>
+<td>Missing Basic Auth credentials</td>
+</tr>
+<tr>
+<td><code>404 Not Found</code></td>
+<td>Unknown route, static file not found, or unknown IO <code>id</code> in <code>/api/io/set</code>.</td>
+<td>Typo in the ID/route</td>
+</tr>
+<tr>
+<td><code>409 Conflict</code></td>
+<td>Only for <code>/api/io/set</code>: the output has an active threshold rule and cannot be switched manually.</td>
+<td>Attempting to manually switch an automatically controlled output</td>
+</tr>
+<tr>
+<td><code>500 Internal Server Error</code></td>
+<td>Internal error (e.g. flash/NVS write error, SPIFFS mount error).</td>
+<td>Hardware/flash problem</td>
+</tr>
+</tbody></table></div>
+<p>Error responses (<code>400</code>/<code>404</code>/<code>409</code>/<code>500</code>) are <strong>plain text</strong>, not JSON – when parsing the response in your own code, check the HTTP status first before parsing the body as JSON.</p>
+<hr>
+<h2 id="system">System</h2>
+<h3 id="get-apisysteminfo"><code>GET /api/system/info</code></h3>
+<p>Device, firmware, and connection status. Also polled by the web UI footer/dashboard every 10s.</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Query parameters:</strong> none · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl http://192.168.1.50/api/system/info</code></pre>
+<p><strong>Example response (200):</strong></p>
+<pre><code class="language-json">{
+  &quot;idf_version&quot;: &quot;v5.5.4&quot;,
+  &quot;chip&quot;: &quot;esp32p4&quot;,
+  &quot;cores&quot;: 2,
+  &quot;uptime_s&quot;: 7762,
+  &quot;free_heap&quot;: 33935260,
+  &quot;min_free_heap&quot;: 33915212,
+  &quot;has_ip&quot;: true,
+  &quot;wifi_connected&quot;: true,
+  &quot;eth_connected&quot;: false,
+  &quot;mqtt_enabled&quot;: true,
+  &quot;mqtt_connected&quot;: true,
+  &quot;snmp_enabled&quot;: true,
+  &quot;snmp_listening&quot;: true,
+  &quot;auth_enabled&quot;: false,
+  &quot;header_gpio_count&quot;: 28,
+  &quot;time_synced&quot;: true,
+  &quot;unix_time_s&quot;: 1786357200,
+  &quot;utc_offset_s&quot;: 7200
+}</code></pre>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>idf_version</code></td>
+<td>string</td>
+<td>ESP-IDF version the firmware was built with</td>
+</tr>
+<tr>
+<td><code>chip</code></td>
+<td>string</td>
+<td>Target chip (<code>esp32p4</code>)</td>
+</tr>
+<tr>
+<td><code>cores</code></td>
+<td>number</td>
+<td>Number of CPU cores</td>
+</tr>
+<tr>
+<td><code>uptime_s</code></td>
+<td>number</td>
+<td>Time since last boot, in seconds</td>
+</tr>
+<tr>
+<td><code>free_heap</code></td>
+<td>number</td>
+<td>Currently free heap in bytes</td>
+</tr>
+<tr>
+<td><code>min_free_heap</code></td>
+<td>number</td>
+<td>Minimum free heap ever measured since boot (fragmentation indicator)</td>
+</tr>
+<tr>
+<td><code>has_ip</code></td>
+<td>bool</td>
+<td><code>true</code> as soon as Ethernet <strong>or</strong> Wi-Fi has an IP address</td>
+</tr>
+<tr>
+<td><code>wifi_connected</code></td>
+<td>bool</td>
+<td>Wi-Fi station currently has an IP address</td>
+</tr>
+<tr>
+<td><code>eth_connected</code></td>
+<td>bool</td>
+<td>Ethernet interface currently has an IP address</td>
+</tr>
+<tr>
+<td><code>mqtt_enabled</code></td>
+<td>bool</td>
+<td>MQTT currently enabled (independent of connection status)</td>
+</tr>
+<tr>
+<td><code>mqtt_connected</code></td>
+<td>bool</td>
+<td>MQTT client currently connected to the broker</td>
+</tr>
+<tr>
+<td><code>snmp_enabled</code></td>
+<td>bool</td>
+<td>SNMP currently enabled (short form of <code>/api/snmp/config</code>)</td>
+</tr>
+<tr>
+<td><code>snmp_listening</code></td>
+<td>bool</td>
+<td>SNMP UDP listener is actually running (can be <code>false</code> despite <code>snmp_enabled:true</code> if enabling it still requires a reboot, see <a href="../README.en.md#snmp">README → SNMP</a>)</td>
+</tr>
+<tr>
+<td><code>auth_enabled</code></td>
+<td>bool</td>
+<td>Login currently enabled (short form of <code>/api/auth/config</code>)</td>
+</tr>
+<tr>
+<td><code>header_gpio_count</code></td>
+<td>number</td>
+<td>Number of GPIOs available on the 40-pin header (constant 28)</td>
+</tr>
+<tr>
+<td><code>time_synced</code></td>
+<td>bool</td>
+<td><code>true</code> once the clock has been synchronized via NTP at least once (see <a href="#time-ntp">Time (NTP)</a>)</td>
+</tr>
+<tr>
+<td><code>unix_time_s</code></td>
+<td>number</td>
+<td>Current Unix time (UTC, seconds) – a small, meaningless value near 0 before the first NTP sync</td>
+</tr>
+<tr>
+<td><code>utc_offset_s</code></td>
+<td>number</td>
+<td>Current UTC offset of the configured timezone in seconds, including any currently active daylight saving time (e.g. <code>7200</code> = UTC+2). Useful for clients that want to compute local time themselves from <code>unix_time_s</code> without parsing POSIX TZ syntax – local time = <code>unix_time_s + utc_offset_s</code></td>
+</tr>
+</tbody></table></div>
+<h3 id="post-apisystemreboot"><code>POST /api/system/reboot</code></h3>
+<p>Reboots the device immediately. Configuration is preserved.</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> none (empty body or <code>{}</code>)</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl -X POST http://192.168.1.50/api/system/reboot</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code> — sent <strong>before</strong> the actual reboot happens after ~300ms; the TCP connection may already have dropped by then, so a connection error after this route is normal and not a failure.</p>
+<h3 id="post-apisystemfactory-reset"><code>POST /api/system/factory-reset</code></h3>
+<p>Erases <strong>all</strong> configuration areas (network, MQTT, SNMP, sensors, IOs, login) from NVS storage and then reboots. <strong>Not reversible.</strong></p>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl -X POST http://192.168.1.50/api/system/factory-reset</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code> (reboot follows after ~300ms, see note above).</p>
+<blockquote><p>⚠️ After a factory reset, login is disabled and all sensors/IOs are deleted – the device boots into a clean factory state (but Wi-Fi/Ethernet behavior is unchanged, since network interfaces are not part of the deleted configuration in the strict sense, only the stored Wi-Fi credentials are).</p></blockquote>
+<h3 id="post-apisystemota"><code>POST /api/system/ota</code></h3>
+<p>Firmware update: accepts a raw <code>.bin</code> image (from <code>idf.py build</code>, file <code>build/temperaturwatch.bin</code>) as the <strong>request body</strong> (not JSON, not multipart – the entire body is the binary) and writes it to whichever OTA slot (<code>ota_0</code>/<code>ota_1</code>) is currently inactive.</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Content type:</strong> <code>application/octet-stream</code> (or anything, it is not checked) · <strong>Body:</strong> raw binary data of the <code>.bin</code> image</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl -X POST --data-binary @build/temperaturwatch.bin http://192.168.1.50/api/system/ota</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code> — after that, the device automatically reboots into the new firmware (~500ms delay, connection drop is normal). If the new firmware fails to start cleanly, the bootloader automatically rolls back to the previous version on the next boot thanks to <code>CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE</code>.</p>
+<p><strong>Error cases (in addition to the general scheme):</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Condition</th>
+</tr></thead><tbody>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Body empty, transfer aborted during upload, or image validation failed (<code>esp_ota_end</code>, e.g. corrupt/incomplete file)</td>
+</tr>
+<tr>
+<td><code>500 Internal Server Error</code></td>
+<td>No OTA partition available, <code>esp_ota_begin</code>/<code>esp_ota_write</code>/<code>esp_ota_set_boot_partition</code> failed</td>
+</tr>
+</tbody></table></div>
+<blockquote><p>Updates <strong>only the firmware</strong> (app partition). For the web UI, see <code>/api/system/ota-web</code>.</p></blockquote>
+<h3 id="post-apisystemota-web"><code>POST /api/system/ota-web</code></h3>
+<p>Web UI update: accepts a SPIFFS image (from <code>idf.py build</code>, file <code>build/www.bin</code>, built from the <code>web/</code> folder) as the <strong>request body</strong> and writes it directly to the <code>www</code> partition. <strong>No reboot needed</strong> – the partition is remounted immediately after writing.</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> raw binary data of the <code>www.bin</code> image</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl -X POST --data-binary @build/www.bin http://192.168.1.50/api/system/ota-web</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code>. The REST API itself remains reachable throughout the upload (it is part of the firmware, not dependent on SPIFFS) – only the web UI (static files) is unreachable for the short duration of the write (erasing + writing the partition).</p>
+<p><strong>Error cases (in addition to the general scheme):</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Condition</th>
+</tr></thead><tbody>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Body empty, image larger than the <code>www</code> partition (2 MB), or transfer aborted</td>
+</tr>
+<tr>
+<td><code>500 Internal Server Error</code></td>
+<td><code>www</code> partition not found, erasing/writing the partition failed, or the new filesystem cannot be mounted after writing (corrupt image – in this case only a reflash via USB, <code>idf.py -p &lt;PORT&gt; flash</code>, remains)</td>
+</tr>
+</tbody></table></div>
+<h3 id="get-apiboardpins"><code>GET /api/board/pins</code></h3>
+<p>List of all 28 GPIOs available on the 40-pin header. Used by the web UI to populate the GPIO selector in the sensor/IO dialogs.</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl http://192.168.1.50/api/board/pins</code></pre>
+<p><strong>Example response (200, abridged):</strong></p>
+<pre><code class="language-json">[
+  { &quot;gpio&quot;: 0, &quot;header_pin&quot;: 24, &quot;note&quot;: null },
+  { &quot;gpio&quot;: 7, &quot;header_pin&quot;: 4, &quot;note&quot;: &quot;I2C SDA (default function)&quot; },
+  { &quot;gpio&quot;: 37, &quot;header_pin&quot;: 7, &quot;note&quot;: &quot;Debug UART TX (default function)&quot; },
+  { &quot;gpio&quot;: 54, &quot;header_pin&quot;: 31, &quot;note&quot;: null }
+]</code></pre>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>gpio</code></td>
+<td>number</td>
+<td>GPIO number</td>
+</tr>
+<tr>
+<td><code>header_pin</code></td>
+<td>number</td>
+<td>Physical pin number on the 40-pin header (1–40)</td>
+</tr>
+<tr>
+<td><code>note</code></td>
+<td>string | <code>null</code></td>
+<td>Note about a default function (e.g. I2C, debug UART) that would be overridden by an assignment; <code>null</code> if the pin is free without restriction</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="sensors">Sensors</h2>
+<h3 id="get-apisensors"><code>GET /api/sensors</code></h3>
+<p>Live readings of all configured sensors.</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl http://192.168.1.50/api/sensors</code></pre>
+<p><strong>Example response (200):</strong></p>
+<pre><code class="language-json">[
+  {
+    &quot;id&quot;: &quot;aussentemperatur&quot;,
+    &quot;type&quot;: &quot;dallas&quot;,
+    &quot;gpio&quot;: 4,
+    &quot;label&quot;: &quot;Outdoor temperature&quot;,
+    &quot;poll_interval_s&quot;: 10,
+    &quot;rom_id&quot;: &quot;28FF641234567890&quot;,
+    &quot;has_reading&quot;: true,
+    &quot;last_read_ok&quot;: true,
+    &quot;temperature_c&quot;: 21.5,
+    &quot;last_read_time_ms&quot;: 123456
+  },
+  {
+    &quot;id&quot;: &quot;keller&quot;,
+    &quot;type&quot;: &quot;am2301&quot;,
+    &quot;gpio&quot;: 21,
+    &quot;label&quot;: &quot;Basement&quot;,
+    &quot;poll_interval_s&quot;: 15,
+    &quot;has_reading&quot;: true,
+    &quot;last_read_ok&quot;: true,
+    &quot;temperature_c&quot;: 17.8,
+    &quot;humidity_pct&quot;: 62.3,
+    &quot;last_read_time_ms&quot;: 118900
+  },
+  {
+    &quot;id&quot;: &quot;defekt&quot;,
+    &quot;type&quot;: &quot;dht11&quot;,
+    &quot;gpio&quot;: 20,
+    &quot;label&quot;: &quot;&quot;,
+    &quot;poll_interval_s&quot;: 10,
+    &quot;has_reading&quot;: true,
+    &quot;last_read_ok&quot;: false,
+    &quot;last_read_time_ms&quot;: 98000
+  }
+]</code></pre>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>id</code></td>
+<td>string</td>
+<td>Unique sensor ID (from the configuration)</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>string</td>
+<td><code>dallas</code> | <code>dht11</code> | <code>am2301</code></td>
+</tr>
+<tr>
+<td><code>gpio</code></td>
+<td>number</td>
+<td>Assigned GPIO</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>string</td>
+<td>Display name (can be empty)</td>
+</tr>
+<tr>
+<td><code>poll_interval_s</code></td>
+<td>number</td>
+<td>Configured poll interval</td>
+</tr>
+<tr>
+<td><code>rom_id</code></td>
+<td>string</td>
+<td><strong>Only for <code>type:"dallas"</code></strong> and when a fixed ROM ID is configured (16 hex characters)</td>
+</tr>
+<tr>
+<td><code>has_reading</code></td>
+<td>bool</td>
+<td><code>false</code> as long as no measurement attempt has occurred yet (shortly after boot/creation)</td>
+</tr>
+<tr>
+<td><code>last_read_ok</code></td>
+<td>bool</td>
+<td>Result of the last measurement attempt (a sensor can, e.g. due to a loose contact, occasionally return errors)</td>
+</tr>
+<tr>
+<td><code>temperature_c</code></td>
+<td>number</td>
+<td><strong>Only present if <code>has_reading &amp;&amp; last_read_ok</code></strong></td>
+</tr>
+<tr>
+<td><code>humidity_pct</code></td>
+<td>number</td>
+<td><strong>Only present for DHT11/AM2301</strong> (not for Dallas) and a valid reading</td>
+</tr>
+<tr>
+<td><code>last_read_time_ms</code></td>
+<td>number</td>
+<td>Timestamp of the last measurement in ms since boot (<code>0</code> if never measured) – comparable to <code>uptime_s * 1000</code> from <code>/api/system/info</code> to compute the age of the reading</td>
+</tr>
+</tbody></table></div>
+<h3 id="get-apisensorsconfig"><code>GET /api/sensors/config</code></h3>
+<p>Stored sensor configuration (not the live values).</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl http://192.168.1.50/api/sensors/config</code></pre>
+<p><strong>Example response (200):</strong></p>
+<pre><code class="language-json">[
+  {
+    &quot;id&quot;: &quot;aussentemperatur&quot;,
+    &quot;type&quot;: &quot;dallas&quot;,
+    &quot;gpio&quot;: 4,
+    &quot;label&quot;: &quot;Outdoor temperature&quot;,
+    &quot;poll_interval_s&quot;: 10,
+    &quot;rom_id&quot;: &quot;28FF641234567890&quot;
+  },
+  {
+    &quot;id&quot;: &quot;keller&quot;,
+    &quot;type&quot;: &quot;am2301&quot;,
+    &quot;gpio&quot;: 21,
+    &quot;label&quot;: &quot;Basement&quot;,
+    &quot;poll_interval_s&quot;: 15
+  }
+]</code></pre>
+<h3 id="put-apisensorsconfig"><code>PUT /api/sensors/config</code></h3>
+<p>Replaces the <strong>entire</strong> sensor configuration. See <a href="#basics">Full replacement on PUT</a> for the editing workflow.</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Content type:</strong> <code>application/json</code> · <strong>Body:</strong> JSON array (<code>[]</code> is allowed too = delete all sensors)</p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Unique ID, max. 31 characters. Freely chosen (the web UI generates it automatically from the label)</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>string</td>
+<td>yes</td>
+<td><code>dallas</code> | <code>dht11</code> | <code>am2301</code></td>
+</tr>
+<tr>
+<td><code>gpio</code></td>
+<td>number</td>
+<td>yes</td>
+<td>Must be on the 40-pin header (see <code>/api/board/pins</code>) and must not already be used by an IO or an incompatible sensor</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>string</td>
+<td>no</td>
+<td>Display name, max. 47 characters</td>
+</tr>
+<tr>
+<td><code>poll_interval_s</code></td>
+<td>number</td>
+<td>no</td>
+<td>Poll interval in seconds; default <code>10</code> if missing or <code>≤ 0</code></td>
+</tr>
+<tr>
+<td><code>rom_id</code></td>
+<td>string</td>
+<td>no</td>
+<td>Only relevant for <code>type:"dallas"</code>: fixed 1-Wire ROM ID as a 16-digit hex string (uppercase, e.g. <code>"28FF641234567890"</code>). If omitted, the first device found on the bus is used for each measurement – fine for single sensors, risky with multiple Dallas sensors on the same GPIO</td>
+</tr>
+</tbody></table></div>
+<p><strong>GPIO sharing note:</strong> Multiple <code>dallas</code> sensors may share the same <code>gpio</code> (1-Wire multidrop bus, distinguished via <code>rom_id</code>). All other combinations (two DHT sensors, or Dallas+DHT on the same GPIO) are rejected.</p>
+<p><strong>Example request</strong> (two sensors, one Dallas with a fixed ROM ID, one AM2301):</p>
+<pre><code class="language-bash">curl -X PUT http://192.168.1.50/api/sensors/config \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;[
+    {
+      &quot;id&quot;: &quot;aussentemperatur&quot;,
+      &quot;type&quot;: &quot;dallas&quot;,
+      &quot;gpio&quot;: 4,
+      &quot;label&quot;: &quot;Outdoor temperature&quot;,
+      &quot;poll_interval_s&quot;: 10,
+      &quot;rom_id&quot;: &quot;28FF641234567890&quot;
+    },
+    {
+      &quot;id&quot;: &quot;keller&quot;,
+      &quot;type&quot;: &quot;am2301&quot;,
+      &quot;gpio&quot;: 21,
+      &quot;label&quot;: &quot;Basement&quot;,
+      &quot;poll_interval_s&quot;: 15
+    }
+  ]&#x27;</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code></p>
+<p><strong>Error cases (in addition to the general scheme):</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Condition</th>
+</tr></thead><tbody>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Body is not a JSON array; an entry has a missing/incorrectly typed <code>id</code>/<code>type</code>/<code>gpio</code>; <code>type</code> is not a valid value; <code>gpio</code> is not on the header; <code>gpio</code> is already used by another sensor (invalid combination) or by an IO</td>
+</tr>
+</tbody></table></div>
+<p><strong>Adding a single sensor (edit pattern):</strong></p>
+<pre><code class="language-bash"># 1. Fetch the current list
+curl http://192.168.1.50/api/sensors/config &gt; sensors.json
+
+# 2. Add the new entry to sensors.json manually or via script
+
+# 3. Write the complete array back
+curl -X PUT http://192.168.1.50/api/sensors/config \
+  -H &quot;Content-Type: application/json&quot; \
+  --data-binary @sensors.json</code></pre>
+<h3 id="get-apisensorsdallas-scan"><code>GET /api/sensors/dallas-scan</code></h3>
+<p>Scans the 1-Wire bus on a given GPIO and returns the ROM IDs of all Dallas devices found. Used by the web UI in the sensor dialog via the "Scan bus" button, but works independently of saving a sensor configuration (pure diagnostic scan).</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Query parameters:</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>gpio</code></td>
+<td>number</td>
+<td>yes</td>
+<td>GPIO the 1-Wire bus is connected to (0–54, must be on the header)</td>
+</tr>
+</tbody></table></div>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl &quot;http://192.168.1.50/api/sensors/dallas-scan?gpio=4&quot;</code></pre>
+<p><strong>Example response (200):</strong></p>
+<pre><code class="language-json">[&quot;28FF641234567890&quot;, &quot;28AA112233445566&quot;]</code></pre>
+<p>Empty array <code>[]</code> if no devices were found (not an error).</p>
+<p><strong>Error cases (in addition to the general scheme):</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Condition</th>
+</tr></thead><tbody>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td><code>gpio</code> parameter missing, not a number, outside 0–54, or not on the header</td>
+</tr>
+<tr>
+<td><code>500 Internal Server Error</code></td>
+<td>Error during the bus scan itself (e.g. <code>onewire_bus</code> driver error)</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="digital-ios">Digital IOs</h2>
+<h3 id="get-apiio"><code>GET /api/io</code></h3>
+<p>Live states of all configured digital inputs/outputs.</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl http://192.168.1.50/api/io</code></pre>
+<p><strong>Example response (200):</strong> one output with an active threshold rule (incl. hysteresis), one output without a rule, one input:</p>
+<pre><code class="language-json">[
+  {
+    &quot;id&quot;: &quot;lueftungsrelais&quot;,
+    &quot;type&quot;: &quot;output&quot;,
+    &quot;gpio&quot;: 23,
+    &quot;label&quot;: &quot;Fan relay&quot;,
+    &quot;invert&quot;: false,
+    &quot;state&quot;: true,
+    &quot;rule&quot;: {
+      &quot;sensor_id&quot;: &quot;keller&quot;,
+      &quot;field&quot;: &quot;temperature_c&quot;,
+      &quot;operator&quot;: &quot;gt&quot;,
+      &quot;threshold&quot;: 25.0,
+      &quot;hysteresis&quot;: 1.0
+    }
+  },
+  {
+    &quot;id&quot;: &quot;warnleuchte&quot;,
+    &quot;type&quot;: &quot;output&quot;,
+    &quot;gpio&quot;: 24,
+    &quot;label&quot;: &quot;Warning light&quot;,
+    &quot;invert&quot;: true,
+    &quot;state&quot;: false
+  },
+  {
+    &quot;id&quot;: &quot;tuerkontakt&quot;,
+    &quot;type&quot;: &quot;input&quot;,
+    &quot;gpio&quot;: 25,
+    &quot;label&quot;: &quot;Door contact&quot;,
+    &quot;invert&quot;: false,
+    &quot;state&quot;: true
+  }
+]</code></pre>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>id</code></td>
+<td>string</td>
+<td>Unique IO ID</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>string</td>
+<td><code>output</code> | <code>input</code></td>
+</tr>
+<tr>
+<td><code>gpio</code></td>
+<td>number</td>
+<td>Assigned GPIO</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>string</td>
+<td>Display name</td>
+</tr>
+<tr>
+<td><code>invert</code></td>
+<td>bool</td>
+<td><code>true</code> = active-low (logic level is inverted)</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td>bool</td>
+<td><strong>Logical</strong> state after applying <code>invert</code> (not the raw pin level)</td>
+</tr>
+<tr>
+<td><code>rule</code></td>
+<td>object</td>
+<td><strong>Only present for <code>type:"output"</code> with an active threshold rule</strong> – absent entirely for manually switched outputs and for inputs (no <code>"rule": null</code>)</td>
+</tr>
+</tbody></table></div>
+<p><code>rule</code> sub-object:</p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>sensor_id</code></td>
+<td>string</td>
+<td>ID of the controlling sensor</td>
+</tr>
+<tr>
+<td><code>field</code></td>
+<td>string</td>
+<td><code>temperature_c</code> | <code>humidity_pct</code></td>
+</tr>
+<tr>
+<td><code>operator</code></td>
+<td>string</td>
+<td><code>gt</code> (&gt;) | <code>gte</code> (≥) | <code>lt</code> (&lt;) | <code>lte</code> (≤)</td>
+</tr>
+<tr>
+<td><code>threshold</code></td>
+<td>number</td>
+<td>Threshold value</td>
+</tr>
+<tr>
+<td><code>hysteresis</code></td>
+<td>number</td>
+<td>Dead band against rapid on/off switching (0 = no hysteresis). For <code>gt</code>/<code>gte</code>, the output only switches off again once the reading falls <code>hysteresis</code> <strong>below</strong> the threshold; for <code>lt</code>/<code>lte</code>, conversely, it only switches off once it rises above it</td>
+</tr>
+</tbody></table></div>
+<h3 id="get-apiioconfig"><code>GET /api/io/config</code></h3>
+<p>Stored IO configuration (identical field schema to <code>PUT</code>, see below).</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl http://192.168.1.50/api/io/config</code></pre>
+<h3 id="put-apiioconfig"><code>PUT /api/io/config</code></h3>
+<p>Replaces the <strong>entire</strong> IO configuration. See <a href="#basics">Full replacement on PUT</a>.</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Content type:</strong> <code>application/json</code> · <strong>Body:</strong> JSON array</p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Unique ID, max. 31 characters</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>string</td>
+<td>yes</td>
+<td><code>output</code> | <code>input</code></td>
+</tr>
+<tr>
+<td><code>gpio</code></td>
+<td>number</td>
+<td>yes</td>
+<td>Must be on the header; <strong>unlike sensors, IOs support no sharing</strong> – each GPIO may be assigned to exactly one IO entry</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>string</td>
+<td>no</td>
+<td>Display name, max. 47 characters</td>
+</tr>
+<tr>
+<td><code>invert</code></td>
+<td>bool</td>
+<td>no</td>
+<td>Default <code>false</code></td>
+</tr>
+<tr>
+<td><code>initial_state</code></td>
+<td>bool</td>
+<td>no</td>
+<td>Only relevant for <code>type:"output"</code>: state immediately after boot, before a rule/manual switch takes effect. Default <code>false</code></td>
+</tr>
+<tr>
+<td><code>rule</code></td>
+<td>object</td>
+<td>no</td>
+<td>Only meaningful for <code>type:"output"</code> (see below); omit/<code>null</code> = no automatic switching</td>
+</tr>
+</tbody></table></div>
+<p><code>rule</code> sub-object (when present, all fields except <code>hysteresis</code> are required):</p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>sensor_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Must reference an existing sensor <code>id</code> (not checked server-side for existence – with an unknown ID the rule simply never gets a valid reading)</td>
+</tr>
+<tr>
+<td><code>field</code></td>
+<td>string</td>
+<td>yes</td>
+<td><strong>Only</strong> <code>temperature_c</code> or <code>humidity_pct</code> – any other value is rejected</td>
+</tr>
+<tr>
+<td><code>operator</code></td>
+<td>string</td>
+<td>yes</td>
+<td><strong>Only</strong> <code>gt</code>, <code>gte</code>, <code>lt</code>, <code>lte</code></td>
+</tr>
+<tr>
+<td><code>threshold</code></td>
+<td>number</td>
+<td>yes</td>
+<td>Threshold value</td>
+</tr>
+<tr>
+<td><code>hysteresis</code></td>
+<td>number</td>
+<td>no</td>
+<td>Must be <code>≥ 0</code>, otherwise a validation error. Default <code>0</code></td>
+</tr>
+</tbody></table></div>
+<p><strong>Example request</strong> (one output with a threshold rule + hysteresis, one plain input):</p>
+<pre><code class="language-bash">curl -X PUT http://192.168.1.50/api/io/config \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;[
+    {
+      &quot;id&quot;: &quot;lueftungsrelais&quot;,
+      &quot;type&quot;: &quot;output&quot;,
+      &quot;gpio&quot;: 23,
+      &quot;label&quot;: &quot;Fan relay&quot;,
+      &quot;invert&quot;: false,
+      &quot;initial_state&quot;: false,
+      &quot;rule&quot;: {
+        &quot;sensor_id&quot;: &quot;keller&quot;,
+        &quot;field&quot;: &quot;temperature_c&quot;,
+        &quot;operator&quot;: &quot;gt&quot;,
+        &quot;threshold&quot;: 25.0,
+        &quot;hysteresis&quot;: 1.0
+      }
+    },
+    {
+      &quot;id&quot;: &quot;tuerkontakt&quot;,
+      &quot;type&quot;: &quot;input&quot;,
+      &quot;gpio&quot;: 25,
+      &quot;label&quot;: &quot;Door contact&quot;,
+      &quot;invert&quot;: false
+    }
+  ]&#x27;</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code></p>
+<p><strong>Error cases (in addition to the general scheme):</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Condition</th>
+</tr></thead><tbody>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Body not an array; missing/incorrectly typed required fields; invalid <code>type</code>; <code>gpio</code> not on the header or assigned twice (including between two IOs); <code>gpio</code> already used by a sensor; <code>rule</code> structurally invalid (wrong <code>field</code>/<code>operator</code>, missing required fields, <code>hysteresis &lt; 0</code>)</td>
+</tr>
+</tbody></table></div>
+<h3 id="post-apiioset"><code>POST /api/io/set</code></h3>
+<p>Manually switches a digital output. Does <strong>not</strong> work while the output has an active threshold rule (in that case the rule controls it).</p>
+<p><strong>Auth:</strong> as globally configured · <strong>Query parameters:</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Parameter</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>ID of the output (from <code>/api/io/config</code>)</td>
+</tr>
+</tbody></table></div>
+<p><strong>Body:</strong> <code>{ "state": bool }</code></p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl -X POST &quot;http://192.168.1.50/api/io/set?id=warnleuchte&quot; \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{&quot;state&quot;: true}&#x27;</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code></p>
+<p><strong>Error cases (in addition to the general scheme):</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Condition</th>
+</tr></thead><tbody>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Query parameter <code>id</code> missing; field <code>state</code> missing or not a boolean</td>
+</tr>
+<tr>
+<td><code>404 Not Found</code></td>
+<td>No IO with this <code>id</code> known (or it is an input instead of an output)</td>
+</tr>
+<tr>
+<td><code>409 Conflict</code></td>
+<td>The output has an active threshold rule – plain-text response <code>"Ausgang hat eine aktive Schwellwert-Regel"</code> ("Output has an active threshold rule"). To switch manually, first remove the rule via <code>PUT /api/io/config</code></td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="network">Network</h2>
+<h3 id="get-apinetworkconfig"><code>GET /api/network/config</code></h3>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl http://192.168.1.50/api/network/config</code></pre>
+<p><strong>Example response (200):</strong></p>
+<pre><code class="language-json">{
+  &quot;wifi_ssid&quot;: &quot;MyNetwork&quot;,
+  &quot;wifi_password&quot;: &quot;&quot;,
+  &quot;hostname&quot;: &quot;temperaturwatch&quot;
+}</code></pre>
+<blockquote><p><code>wifi_password</code> is <strong>always</strong> returned as an empty string for security reasons, regardless of the password actually stored.</p></blockquote>
+<h3 id="put-apinetworkconfig"><code>PUT /api/network/config</code></h3>
+<p><strong>Auth:</strong> as globally configured · <strong>Content type:</strong> <code>application/json</code></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>wifi_ssid</code></td>
+<td>string</td>
+<td>yes (must be present as a string, empty allowed)</td>
+<td>Max. 32 characters. Empty string = Wi-Fi station stays inactive (Ethernet only)</td>
+</tr>
+<tr>
+<td><code>wifi_password</code></td>
+<td>string</td>
+<td>no</td>
+<td>Max. 63 characters. <strong>Empty/omitted = existing password is kept</strong> (write-if-nonempty pattern, same as the login and MQTT password)</td>
+</tr>
+<tr>
+<td><code>hostname</code></td>
+<td>string</td>
+<td>no</td>
+<td>Max. 31 characters (mDNS name, reachable as <code>&lt;hostname&gt;.local</code>). Empty/omitted = existing value is kept</td>
+</tr>
+</tbody></table></div>
+<blockquote><p><strong>Important:</strong> Changes only take effect after a reboot (<code>POST /api/system/reboot</code>) – there is no live reconnect.</p></blockquote>
+<p><strong>Example request</strong> (set Wi-Fi credentials, leave hostname unchanged):</p>
+<pre><code class="language-bash">curl -X PUT http://192.168.1.50/api/network/config \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{
+    &quot;wifi_ssid&quot;: &quot;MyNetwork&quot;,
+    &quot;wifi_password&quot;: &quot;secure-password123&quot;
+  }&#x27;</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code></p>
+<p><strong>Error cases (in addition to the general scheme):</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Condition</th>
+</tr></thead><tbody>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Body not a JSON object, or <code>wifi_ssid</code> missing/not a string</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="time-ntp">Time (NTP)</h2>
+<h3 id="get-apitimeconfig"><code>GET /api/time/config</code></h3>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl http://192.168.1.50/api/time/config</code></pre>
+<p><strong>Example response (200):</strong></p>
+<pre><code class="language-json">{
+  &quot;enabled&quot;: true,
+  &quot;ntp_server&quot;: &quot;pool.ntp.org&quot;,
+  &quot;timezone&quot;: &quot;CET-1CEST,M3.5.0,M10.5.0/3&quot;,
+  &quot;synced&quot;: true
+}</code></pre>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Note</th>
+</tr></thead><tbody>
+<tr>
+<td><code>synced</code></td>
+<td><strong>Only present in the GET response</strong> (runtime status) – ignored on <code>PUT</code> if sent. Stays permanently <code>true</code> after the first successful sync, even if NTP is disabled afterward (the last known time keeps running on the system clock)</td>
+</tr>
+</tbody></table></div>
+<h3 id="put-apitimeconfig"><code>PUT /api/time/config</code></h3>
+<p><strong>Auth:</strong> as globally configured · <strong>Content type:</strong> <code>application/json</code></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td>no</td>
+<td><code>false</code> (for an explicit <code>PUT</code> without this field)</td>
+<td>NTP client active/inactive. <strong>Takes effect immediately</strong> – no reboot needed, the SNTP client is restarted or stopped directly on save</td>
+</tr>
+<tr>
+<td><code>ntp_server</code></td>
+<td>string</td>
+<td>no</td>
+<td><code>pool.ntp.org</code></td>
+<td>Max. 63 characters. Hostname or IP address of an NTP server. An empty string falls back to the default</td>
+</tr>
+<tr>
+<td><code>timezone</code></td>
+<td>string</td>
+<td>no</td>
+<td><code>CET-1CEST,M3.5.0,M10.5.0/3</code> (Europe/Berlin)</td>
+<td>Max. 63 characters, <strong>POSIX TZ syntax</strong> (not IANA zone names like <code>Europe/Berlin</code>!), e.g. <code>UTC0</code>, <code>EST5EDT,M3.2.0,M11.1.0</code>. An empty string falls back to the default. Takes effect immediately on all time output from the firmware (including <code>utc_offset_s</code> in <a href="#get-apisysteminfo"><code>/api/system/info</code></a>)</td>
+</tr>
+</tbody></table></div>
+<blockquote><p><strong>Important regarding the very first boot:</strong> If no configuration has been saved yet (factory state or after a factory reset), the firmware <strong>automatically</strong> starts with <code>enabled:true</code>, <code>ntp_server:"pool.ntp.org"</code>, and the default timezone – no manual intervention needed to get the clock running. A <code>PUT</code> without the <code>"enabled"</code> field, however, explicitly disables NTP (for consistency with the other config endpoints) – anyone who only wants to change <code>ntp_server</code>/<code>timezone</code> must include <code>"enabled": true</code> in the same request.</p></blockquote>
+<p><strong>Example request</strong> (switch timezone to US East Coast, use a custom NTP server):</p>
+<pre><code class="language-bash">curl -X PUT http://192.168.1.50/api/time/config \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{
+    &quot;enabled&quot;: true,
+    &quot;ntp_server&quot;: &quot;time.cloudflare.com&quot;,
+    &quot;timezone&quot;: &quot;EST5EDT,M3.2.0,M11.1.0&quot;
+  }&#x27;</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code></p>
+<p><strong>Error cases (in addition to the general scheme):</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Condition</th>
+</tr></thead><tbody>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Body not a JSON object (no further field validation – a syntactically nonsensical <code>timezone</code> string is not rejected, but leads to incorrect/no daylight saving conversion instead of an error)</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="mqtt">MQTT</h2>
+<h3 id="get-apimqttconfig"><code>GET /api/mqtt/config</code></h3>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl http://192.168.1.50/api/mqtt/config</code></pre>
+<p><strong>Example response (200):</strong></p>
+<pre><code class="language-json">{
+  &quot;enabled&quot;: true,
+  &quot;broker_uri&quot;: &quot;mqtt://192.168.150.156:1883&quot;,
+  &quot;username&quot;: &quot;&quot;,
+  &quot;password&quot;: &quot;&quot;,
+  &quot;client_id&quot;: &quot;&quot;,
+  &quot;base_topic&quot;: &quot;temperaturwatch&quot;,
+  &quot;publish_interval_s&quot;: 30,
+  &quot;ca_cert&quot;: &quot;&quot;
+}</code></pre>
+<blockquote><p><code>password</code>, like <code>wifi_password</code>, is always masked (returned as an empty string).</p></blockquote>
+<h3 id="put-apimqttconfig"><code>PUT /api/mqtt/config</code></h3>
+<p><strong>Auth:</strong> as globally configured · <strong>Content type:</strong> <code>application/json</code></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td>no</td>
+<td><code>false</code></td>
+<td>MQTT client active/inactive</td>
+</tr>
+<tr>
+<td><code>broker_uri</code></td>
+<td>string</td>
+<td><strong>yes, if <code>enabled:true</code></strong></td>
+<td><code>""</code></td>
+<td>Max. 127 characters. Must start with <code>mqtt://</code> or <code>mqtts://</code>, otherwise a validation error</td>
+</tr>
+<tr>
+<td><code>username</code></td>
+<td>string</td>
+<td>no</td>
+<td><code>""</code></td>
+<td>Max. 63 characters</td>
+</tr>
+<tr>
+<td><code>password</code></td>
+<td>string</td>
+<td>no</td>
+<td>–</td>
+<td>Max. 63 characters. <strong>Empty/omitted = existing password is kept</strong></td>
+</tr>
+<tr>
+<td><code>client_id</code></td>
+<td>string</td>
+<td>no</td>
+<td><code>""</code> (firmware generates an ID internally)</td>
+<td>Max. 31 characters</td>
+</tr>
+<tr>
+<td><code>base_topic</code></td>
+<td>string</td>
+<td>no</td>
+<td><code>temperaturwatch</code></td>
+<td>Max. 31 characters. Empty string falls back to the default</td>
+</tr>
+<tr>
+<td><code>publish_interval_s</code></td>
+<td>number</td>
+<td>no</td>
+<td><code>30</code></td>
+<td>Internally raised to at least <code>5</code> if smaller</td>
+</tr>
+<tr>
+<td><code>ca_cert</code></td>
+<td>string</td>
+<td>no</td>
+<td><code>""</code></td>
+<td>PEM CA certificate (multi-line) for <code>mqtts://</code> connections; empty = system validation/no TLS check, depending on broker setup</td>
+</tr>
+</tbody></table></div>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl -X PUT http://192.168.1.50/api/mqtt/config \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{
+    &quot;enabled&quot;: true,
+    &quot;broker_uri&quot;: &quot;mqtt://192.168.150.156:1883&quot;,
+    &quot;base_topic&quot;: &quot;temperaturwatch&quot;,
+    &quot;publish_interval_s&quot;: 30
+  }&#x27;</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code></p>
+<p><strong>Error cases (in addition to the general scheme):</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Condition</th>
+</tr></thead><tbody>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Body not a JSON object, or <code>enabled:true</code> with a missing/invalid <code>broker_uri</code> (must have an <code>mqtt://</code>/<code>mqtts://</code> prefix)</td>
+</tr>
+</tbody></table></div>
+<p><strong>For reference – MQTT topics actually used at runtime</strong> (below <code>base_topic</code>, default <code>temperaturwatch</code>), relevant for observing the values configured via REST on the broker:</p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Topic</th>
+<th>Direction</th>
+<th>Payload</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>&lt;base&gt;/status</code></td>
+<td>Publish (retained, LWT)</td>
+<td><code>online</code> / <code>offline</code></td>
+<td>Connection status</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;/sensor/&lt;id&gt;/temperature_c</code></td>
+<td>Publish (periodic)</td>
+<td>e.g. <code>21.50</code></td>
+<td>Only for a valid reading</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;/sensor/&lt;id&gt;/humidity_pct</code></td>
+<td>Publish (periodic)</td>
+<td>e.g. <code>62.30</code></td>
+<td>Only for DHT/AM2301 with a valid reading</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;/io/&lt;id&gt;/state</code></td>
+<td>Publish (periodic, retained)</td>
+<td><code>ON</code> / <code>OFF</code></td>
+<td>For every configured IO</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;/io/&lt;id&gt;/set</code></td>
+<td>Subscribe</td>
+<td><code>ON</code>/<code>OFF</code>/<code>1</code>/<code>0</code>/<code>true</code>/<code>false</code></td>
+<td>Switches an output – counterpart to <code>POST /api/io/set</code>, subject to the same rule restrictions</td>
+</tr>
+</tbody></table></div>
+<hr>
+<h2 id="snmp">SNMP</h2>
+<h3 id="get-apisnmpconfig"><code>GET /api/snmp/config</code></h3>
+<p><strong>Auth:</strong> as globally configured · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl http://192.168.1.50/api/snmp/config</code></pre>
+<p><strong>Example response (200):</strong></p>
+<pre><code class="language-json">{
+  &quot;enabled&quot;: true,
+  &quot;community&quot;: &quot;public&quot;,
+  &quot;sys_name&quot;: &quot;temperaturwatch&quot;,
+  &quot;sys_contact&quot;: &quot;admin@example.com&quot;,
+  &quot;sys_location&quot;: &quot;Server room&quot;,
+  &quot;listening&quot;: true
+}</code></pre>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Note</th>
+</tr></thead><tbody>
+<tr>
+<td><code>listening</code></td>
+<td><strong>Only present in the GET response</strong> (runtime status of whether the UDP listener is currently running) – ignored on <code>PUT</code> if sent, and not carried over into the stored configuration</td>
+</tr>
+</tbody></table></div>
+<h3 id="put-apisnmpconfig"><code>PUT /api/snmp/config</code></h3>
+<p><strong>Auth:</strong> as globally configured · <strong>Content type:</strong> <code>application/json</code></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Default</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td>no</td>
+<td><code>false</code></td>
+<td><strong>Changing this requires a reboot</strong> – lwIP provides no way to stop the UDP listener once started</td>
+</tr>
+<tr>
+<td><code>community</code></td>
+<td>string</td>
+<td>no</td>
+<td><code>public</code></td>
+<td>Max. 31 characters. Empty string falls back to <code>public</code>. If the listener is already running, a change is applied <strong>immediately, live</strong> (no reboot needed)</td>
+</tr>
+<tr>
+<td><code>sys_name</code></td>
+<td>string</td>
+<td>no</td>
+<td>Kconfig hostname</td>
+<td>Max. 31 characters</td>
+</tr>
+<tr>
+<td><code>sys_contact</code></td>
+<td>string</td>
+<td>no</td>
+<td><code>""</code></td>
+<td>Max. 31 characters</td>
+</tr>
+<tr>
+<td><code>sys_location</code></td>
+<td>string</td>
+<td>no</td>
+<td><code>""</code></td>
+<td>Max. 31 characters</td>
+</tr>
+</tbody></table></div>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl -X PUT http://192.168.1.50/api/snmp/config \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{
+    &quot;enabled&quot;: true,
+    &quot;community&quot;: &quot;public&quot;,
+    &quot;sys_contact&quot;: &quot;admin@example.com&quot;,
+    &quot;sys_location&quot;: &quot;Server room&quot;
+  }&#x27;</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code></p>
+<p><strong>Error cases (in addition to the general scheme):</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Condition</th>
+</tr></thead><tbody>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Body not a JSON object (no further field validation)</td>
+</tr>
+</tbody></table></div>
+<blockquote><p>For details on the SNMP MIB structure (private MIB + standard MIB-II <code>system</code> group for monitoring tools such as CheckMK/PRTG), see <a href="../README.en.md#snmp">README → SNMP</a>.</p></blockquote>
+<hr>
+<h2 id="login-http-basic-auth">Login (HTTP Basic Auth)</h2>
+<h3 id="get-apiauthconfig"><code>GET /api/auth/config</code></h3>
+<p><strong>Auth:</strong> as globally configured (this endpoint itself is also protected when login is enabled) · <strong>Body:</strong> none</p>
+<p><strong>Example request:</strong></p>
+<pre><code class="language-bash">curl http://192.168.1.50/api/auth/config</code></pre>
+<p><strong>Example response (200):</strong></p>
+<pre><code class="language-json">{
+  &quot;enabled&quot;: true,
+  &quot;username&quot;: &quot;admin&quot;,
+  &quot;password_set&quot;: true
+}</code></pre>
+<blockquote><p>The password itself is <strong>never</strong> returned (neither plain text nor hash) – <code>password_set</code> only indicates whether one is stored at all.</p></blockquote>
+<h3 id="put-apiauthconfig"><code>PUT /api/auth/config</code></h3>
+<p><strong>Auth:</strong> as globally configured · <strong>Content type:</strong> <code>application/json</code></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Field</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td>no (default <code>false</code>)</td>
+<td>Login active/inactive. <strong>Cannot be set to <code>true</code> while no password is set</strong> (neither previously nor in the same request)</td>
+</tr>
+<tr>
+<td><code>username</code></td>
+<td>string</td>
+<td>no</td>
+<td>Max. 31 characters. Empty/omitted = existing username is kept; falls back to <code>admin</code> on the very first setup</td>
+</tr>
+<tr>
+<td><code>password</code></td>
+<td>string (plain text)</td>
+<td>no</td>
+<td>Stored server-side as a SHA-256 hash, never persisted in plain text. <strong>Empty/omitted = existing password (or existing hash) is kept</strong></td>
+</tr>
+</tbody></table></div>
+<p><strong>Example request</strong> (enable login and set a password):</p>
+<pre><code class="language-bash">curl -X PUT http://192.168.1.50/api/auth/config \
+  -H &quot;Content-Type: application/json&quot; \
+  -d &#x27;{
+    &quot;enabled&quot;: true,
+    &quot;username&quot;: &quot;admin&quot;,
+    &quot;password&quot;: &quot;secure-password123&quot;
+  }&#x27;</code></pre>
+<p><strong>Example response (200):</strong> <code>true</code></p>
+<p><strong>Error cases (in addition to the general scheme):</strong></p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Code</th>
+<th>Condition</th>
+</tr></thead><tbody>
+<tr>
+<td><code>400 Bad Request</code></td>
+<td>Body not a JSON object, <strong>or</strong> <code>enabled:true</code> without a password having been set (previously or in this request) – plain-text response <code>"Login kann nicht ohne Passwort aktiviert werden"</code> ("Login cannot be enabled without a password")</td>
+</tr>
+</tbody></table></div>
+<blockquote><p>⚠️ If login is enabled while you yourself are currently connected unauthenticated, all <strong>subsequent</strong> requests (including the web UI) are immediately affected. Note down credentials beforehand.</p></blockquote>
+<hr>
+<h2 id="complete-workflow-example-script">Complete workflow (example script)</h2>
+<p>Example: create a new Dallas sensor, add an output with a threshold rule + hysteresis, and monitor the state.</p>
+<pre><code class="language-bash">DEVICE=192.168.1.50
+
+# 1. Show free GPIOs
+curl -s &quot;http://$DEVICE/api/board/pins&quot; | jq
+
+# 2. Scan the 1-Wire bus on GPIO 4
+curl -s &quot;http://$DEVICE/api/sensors/dallas-scan?gpio=4&quot; | jq
+# -&gt; [&quot;28FF641234567890&quot;]
+
+# 3. Fetch current sensor configuration, append the new sensor, write it back
+curl -s &quot;http://$DEVICE/api/sensors/config&quot; \
+  | jq &#x27;. + [{&quot;id&quot;:&quot;aussen&quot;,&quot;type&quot;:&quot;dallas&quot;,&quot;gpio&quot;:4,&quot;label&quot;:&quot;Outside&quot;,&quot;poll_interval_s&quot;:10,&quot;rom_id&quot;:&quot;28FF641234567890&quot;}]&#x27; \
+  | curl -s -X PUT &quot;http://$DEVICE/api/sensors/config&quot; -H &quot;Content-Type: application/json&quot; --data-binary @-
+
+# 4. Create an output with a threshold rule (switches on above 25°C, hysteresis 1°C)
+curl -s &quot;http://$DEVICE/api/io/config&quot; \
+  | jq &#x27;. + [{
+      &quot;id&quot;:&quot;lueftung&quot;,&quot;type&quot;:&quot;output&quot;,&quot;gpio&quot;:23,&quot;label&quot;:&quot;Ventilation&quot;,
+      &quot;invert&quot;:false,&quot;initial_state&quot;:false,
+      &quot;rule&quot;:{&quot;sensor_id&quot;:&quot;aussen&quot;,&quot;field&quot;:&quot;temperature_c&quot;,&quot;operator&quot;:&quot;gt&quot;,&quot;threshold&quot;:25,&quot;hysteresis&quot;:1}
+    }]&#x27; \
+  | curl -s -X PUT &quot;http://$DEVICE/api/io/config&quot; -H &quot;Content-Type: application/json&quot; --data-binary @-
+
+# 5. Watch the live state
+watch -n5 &quot;curl -s http://$DEVICE/api/sensors | jq; curl -s http://$DEVICE/api/io | jq&quot;</code></pre>
+<p>All examples assume <a href="https://jqlang.org/" target="_blank" rel="noopener"><code>jq</code></a> is available for JSON processing in the shell; the REST API itself has no dependency on it.</p>

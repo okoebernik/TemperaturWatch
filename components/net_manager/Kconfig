@@ -1,0 +1,36 @@
+menu "TemperaturWatch Netzwerk"
+
+    config TW_ETH_PHY_RST_GPIO
+        int "Ethernet PHY (IP101): Reset-GPIO"
+        default 51
+        help
+            GPIO fuer den Hardware-Reset des IP101-PHY. Default aus dem
+            offiziellen Waveshare-Beispiel (waveshareteam/ESP32-P4-Platform,
+            11_ethernetbasic) fuer dieses Board.
+
+    config TW_ETH_PHY_ADDR
+        int "Ethernet PHY (IP101): SMI-Adresse"
+        default 1
+        help
+            SMI/MDIO-Adresse des PHY-Chips. Default 1, wie im
+            Waveshare-Beispiel fuer dieses Board.
+
+    config TW_WIFI_SSID
+        string "Default-WLAN-SSID"
+        default ""
+        help
+            Wird nur bis Milestone 3 (Config-Store) verwendet. Danach kommt
+            die SSID zur Laufzeit aus dem Web-UI/NVS. Leer lassen, um WLAN
+            beim Start zu deaktivieren (z.B. wenn nur Ethernet genutzt wird).
+
+    config TW_WIFI_PASSWORD
+        string "Default-WLAN-Passwort"
+        default ""
+        help
+            Siehe TW_WIFI_SSID. Leeres Passwort bedeutet offenes Netz.
+
+    config TW_HOSTNAME
+        string "Geraete-Hostname (mDNS + DHCP)"
+        default "temperaturwatch"
+
+endmenu

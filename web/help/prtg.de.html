@@ -1,0 +1,210 @@
+<h1 id="temperaturwatch-in-prtg-einbinden">TemperaturWatch in PRTG einbinden</h1>
+<p>Anleitung zur Einrichtung von PRTG Network Monitor für TemperaturWatch-Geräte über den eingebauten SNMPv1/v2c-Agenten. Anders als bei <a href="../contrib/checkmk/">CheckMK</a> gibt es hier <strong>kein eigenes Plugin</strong> zu installieren – PRTG spricht die private MIB direkt über seine eingebauten SNMP-Sensortypen an, komplett über die Web-Oberfläche konfigurierbar, ohne Skript-Deployment auf dem Probe-Server. Für Nutzer, die mehr Flexibilität brauchen (z.B. Zugriff auf IO-Regeln/Hysterese), ist am Ende ein optionaler REST-API-basierter Custom-Sensor beschrieben.</p>
+<h2 id="inhalt">Inhalt</h2>
+<ul><li><a href="#voraussetzungen">Voraussetzungen</a></li><li><a href="#1-gerät-in-prtg-anlegen">1. Gerät in PRTG anlegen</a></li><li><a href="#2-grundprüfung-erreichbarkeit">2. Grundprüfung: Erreichbarkeit</a></li><li><a href="#3-sensor-messwerte-einbinden-snmp-custom-table">3. Sensor-Messwerte einbinden (SNMP Custom Table)</a></li><li><a href="#4-kanäle-skalieren-benennen-limits-setzen">4. Kanäle skalieren, benennen, Limits setzen</a></li><li><a href="#5-digitale-ios-einbinden-optional">5. Digitale IOs einbinden (optional)</a></li><li><a href="#6-neue-sensoren-später-hinzufügen">6. Neue Sensoren später hinzufügen</a></li><li><a href="#bekannte-einschränkung-index-verschiebung">Bekannte Einschränkung: Index-Verschiebung</a></li><li><a href="#troubleshooting">Troubleshooting</a></li><li><a href="#alternative-rest-api-basierter-custom-sensor">Alternative: REST-API-basierter Custom-Sensor</a></li><li><a href="#oid-referenz">OID-Referenz</a></li></ul>
+<h2 id="voraussetzungen">Voraussetzungen</h2>
+<ol><li><strong>SNMP-Agent auf dem Gerät aktivieren:</strong> Web-UI → „SNMP" → „Aktiviert" ✔, Community-String setzen (Default <code>public</code>), speichern, <strong>Gerät neu starten</strong> (SNMP-Aktivierung wirkt erst nach einem Neustart – lwIP kann den UDP-Listener nicht live starten/stoppen).</li><li><strong>Netzwerk:</strong> UDP/161 muss vom PRTG-Probe-Server (Core-Server bei lokalem Probe, oder Remote-Probe-Rechner) aus erreichbar sein – ggf. Firewall-Regel prüfen.</li><li><strong>SNMP-Version:</strong> Der Agent unterstützt <strong>SNMPv1 und v2c</strong> (kein v3/keine Verschlüsselung). In PRTG bei den Geräte-Credentials entsprechend „SNMP v1" oder „SNMP v2c" wählen, nicht v3.</li><li>PRTG-Version: jede aktuelle Version mit den Standard-SNMP-Sensortypen (kein Zusatz-Plugin/Custom-Sensor-Ordner für den empfohlenen Weg über „SNMP Custom Table" nötig).</li></ol>
+<h2 id="1-gerät-in-prtg-anlegen">1. Gerät in PRTG anlegen</h2>
+<ol><li>Im gewünschten Ordner/in der gewünschten Gruppe: <strong>Gerät hinzufügen</strong>.</li><li><strong>IP-Adresse/DNS-Name</strong> des TemperaturWatch-Geräts eintragen (z.B. <code>192.168.1.50</code> oder <code>temperaturwatch.local</code>, falls per mDNS/DNS auflösbar).</li><li>Unter <strong>„Anmeldedaten für SNMP-Geräte"</strong> (Credentials for SNMP Devices) in den Geräte-Einstellungen:</li></ol>
+<ul><li><strong>SNMP-Version:</strong> v1 oder v2c</li><li><strong>Community-String:</strong> wie im Web-UI unter „SNMP" hinterlegt (Default <code>public</code>)</li><li><strong>Port:</strong> 161 (Default, i.d.R. nicht ändern)</li></ul>
+<ol><li>Assistent „Automatische Erkennung" (Auto-Discovery) beim Anlegen <strong>überspringen oder nur mit dem Standard-Template laufen lassen</strong> – die generischen Discovery-Templates kennen unsere private MIB nicht und würden nur die Standard-MIB-II-Sensoren (System, Interfaces) finden. Die eigentlichen Sensor-/IO-Werte werden in Schritt 3 gezielt hinzugefügt.</li></ol>
+<h2 id="2-grundprüfung-erreichbarkeit">2. Grundprüfung: Erreichbarkeit</h2>
+<p>Bevor die eigentlichen Messwert-Sensoren angelegt werden, lohnt sich ein einfacher Konnektivitätstest:</p>
+<ol><li>Am Gerät: <strong>Sensor hinzufügen</strong> → nach <code>SNMP Uptime</code> suchen → hinzufügen.</li><li>Nach kurzer Zeit sollte der Sensor auf <strong>Grün (Up)</strong> wechseln und die Laufzeit seit dem letzten Boot anzeigen.</li></ol>
+<p>Das funktioniert, weil die Firmware neben der privaten MIB auch die <strong>Standard-MIB-II-<code>system</code>-Gruppe</strong> (<code>1.3.6.1.2.1.1.*</code>) bedient – ohne die würden generische SNMP-Tools (PRTG genauso wie CheckMK, siehe unser früheres CheckMK-Problem mit <code>sysObjectID</code>) das Gerät bei der Erkennung als nicht erreichbar einstufen, obwohl die private MIB technisch längst antwortet. Schlägt dieser Test fehl, liegt es fast immer an Community-String, SNMP-Version oder Firewall – siehe <a href="#troubleshooting">Troubleshooting</a>, bevor mit Schritt 3 fortgefahren wird.</p>
+<h2 id="3-sensor-messwerte-einbinden-snmp-custom-table">3. Sensor-Messwerte einbinden (SNMP Custom Table)</h2>
+<p>PRTGs Sensortyp <strong>„SNMP Custom Table"</strong> liest eine SNMP-Tabelle aus und legt pro gefundener Zeile (= pro konfiguriertem TemperaturWatch-Sensor) einen eigenen PRTG-Sensor an – das entspricht direkt der <code>sensorTable</code> der Firmware.</p>
+<ol><li>Am Gerät: <strong>Sensor hinzufügen</strong> → nach <code>SNMP Custom Table</code> suchen → auswählen.</li><li><strong>Table OID</strong> eintragen:</li></ol>
+<pre><code>   1.3.6.1.4.1.99999.1.2.2.1</code></pre>
+<ol><li>Auf <strong>„OID auflösen" / „Test"</strong> klicken – PRTG führt einen SNMP-Walk gegen die Tabelle aus und zeigt die gefundenen Spalten und Zeilen (eine Zeile je aktuell konfiguriertem Sensor) zur Auswahl an.</li><li><strong>Index-Spalte</strong> (die Spalte, deren Wert als Sensorname/-identifikator dient) auf Spalte <strong>2 (<code>sensorId</code>)</strong> setzen – dann heißt der PRTG-Sensor später z.B. <code>aussentemperatur</code> statt nur einer laufenden Nummer.</li><li><strong>Werte-Spalten</strong> (die als Kanäle importiert werden) auswählen:</li></ol>
+<ul><li>Spalte <strong>5</strong> – Temperatur ×10 (Pflicht)</li><li>Spalte <strong>6</strong> – Luftfeuchte ×10 (nur relevant für DHT11/AM2301-Sensoren; bei reinen Dallas-Sensoren steht hier dauerhaft <code>-1</code>, Kanal kann für diese Zeilen ignoriert/ausgeblendet werden)</li><li>Optional Spalte <strong>7</strong> (<code>sensorValid</code>, 0/1) als Statuskanal</li></ul>
+<ol><li>In der Zeilen-Übersicht die gewünschten Sensoren (Zeilen) per Häkchen auswählen → <strong>Fortfahren/Hinzufügen</strong>.</li></ol>
+<p>PRTG legt daraufhin für jeden ausgewählten Sensor einen eigenen Custom-Table-Sensor mit den gewählten Spalten als Kanälen an.</p>
+<h2 id="4-kanäle-skalieren-benennen-limits-setzen">4. Kanäle skalieren, benennen, Limits setzen</h2>
+<p>Die Firmware liefert Temperatur und Feuchte <strong>als Ganzzahl ×10</strong> (SNMP kennt keine Fließkommazahlen in der hier verwendeten Kodierung) – das muss in PRTG pro Kanal korrigiert werden:</p>
+<ol><li>Im neu angelegten Sensor: <strong>Einstellungen</strong> → Abschnitt <strong>„Kanäle"</strong> → jeweiligen Kanal öffnen.</li><li><strong>Temperatur-Kanal:</strong></li></ol>
+<ul><li>„Division" / Divisionsfaktor: <strong>10</strong></li><li>Einheit: <strong>°C</strong> (Custom Unit)</li><li>Nachkommastellen: 1</li><li>Optional unter „Limits": oberer Warnwert z.B. <code>28</code>, oberer Fehlerwert z.B. <code>32</code> (analog zu den Default-Schwellwerten des CheckMK-Plugins) – Werte nach Bedarf anpassen.</li></ul>
+<ol><li><strong>Feuchte-Kanal:</strong> Division <strong>10</strong>, Einheit <strong>%</strong>. Bei reinen Dallas-Sensoren (kein Feuchtewert) diesen Kanal in den Sensor-Einstellungen unter „Kanal ausblenden" deaktivieren, da er dauerhaft <code>-1</code> (÷10 = <code>-0.1</code>) anzeigen würde.</li><li><strong><code>sensorValid</code>-Kanal (falls importiert):</strong> Werteanzeige „0"/„1" reicht meist; wer möchte, kann unter „Limits" bei <code>0</code> eine Warnung/einen Fehler auslösen lassen, um Sensor-Ausfälle (Wackelkontakt, Kabelbruch) direkt als PRTG-Alarm zu bekommen.</li><li>Sensorname umbenennen (Stift-Symbol oben) auf einen sprechenden Namen, falls die <code>sensorId</code> allein nicht aussagekräftig genug ist (PRTG übernimmt beim Anlegen automatisch den Wert der Index-Spalte als Namen).</li></ol>
+<h2 id="5-digitale-ios-einbinden-optional">5. Digitale IOs einbinden (optional)</h2>
+<p>Analog zu Schritt 3/4, mit der IO-Tabelle statt der Sensor-Tabelle:</p>
+<ol><li><strong>Sensor hinzufügen</strong> → <code>SNMP Custom Table</code> → <strong>Table OID:</strong></li></ol>
+<pre><code>   1.3.6.1.4.1.99999.1.3.2.1</code></pre>
+<ol><li><strong>Index-Spalte:</strong> Spalte 2 (<code>ioId</code>)</li><li><strong>Werte-Spalte:</strong> Spalte 5 (<code>ioState</code>, 0/1 = Aus/Ein)</li><li>Kanal-Einheit z.B. auf „Custom" mit Wertebezeichnung „0=Aus, 1=Ein" setzen; kein Divisionsfaktor nötig (kein ×10 bei IOs).</li><li>Optional Limits setzen, falls ein bestimmter Zustand (z.B. Alarmausgang dauerhaft <code>1</code>) einen PRTG-Alarm auslösen soll.</li></ol>
+<blockquote><p>Spalte 4 (<code>ioType</code>, Text <code>output</code>/<code>input</code>) lässt sich nicht sinnvoll als numerischer Kanal importieren – bei Bedarf stattdessen als zusätzliche Index-/Beschreibungs-Spalte im Discovery-Dialog anzeigen lassen, aber nicht als Werte-Spalte auswählen.</p></blockquote>
+<h2 id="6-neue-sensoren-später-hinzufügen">6. Neue Sensoren später hinzufügen</h2>
+<p>Wird im TemperaturWatch-Web-UI ein neuer physischer Sensor angelegt, erscheint er als <strong>neue Zeile</strong> in der SNMP-Tabelle – PRTG übernimmt neue Zeilen aber <strong>nicht automatisch</strong> in bereits bestehende „SNMP Custom Table"-Sensoren. Zwei Wege, das nachzuziehen:</p>
+<ul><li><strong>Manuell (einfach):</strong> Am Gerät erneut <strong>Sensor hinzufügen</strong> → <code>SNMP Custom Table</code> mit derselben Table-OID wie in Schritt 3 → PRTG walkt die Tabelle erneut und zeigt jetzt auch die neue Zeile zur Auswahl an → nur den neuen Sensor abhaken und hinzufügen (bereits vorhandene Sensoren nicht doppelt anlegen).</li><li><strong>Automatisiert (für viele Geräte/häufige Änderungen):</strong> Ein <strong>Gerätevorlagen-basiertes Auto-Discovery</strong> mit Zeitplan einrichten (Geräte-Einstellungen → „Automatische Erkennung" → Zeitplan z.B. „Täglich" + Vorlage, die einen <code>SNMP Custom Table</code>-Sensor auf o.g. Table-OID referenziert). Damit prüft PRTG regelmäßig selbstständig auf neue Tabellenzeilen. Das Einrichten einer solchen Vorlage ist PRTG-Versions-/Lizenzabhängig; für ein einzelnes Gerät ist der manuelle Weg meist der pragmatischere.</li></ul>
+<h2 id="bekannte-einschränkung-index-verschiebung">Bekannte Einschränkung: Index-Verschiebung</h2>
+<p>Die Firmware nummeriert Sensoren/IOs in der SNMP-Tabelle <strong>positionell</strong> (1, 2, 3, … in der Reihenfolge der aktuell gespeicherten Konfiguration) – die Zeilennummer ist <strong>keine feste, dauerhafte ID</strong>. Wird im Web-UI ein Sensor <strong>aus der Mitte der Liste gelöscht</strong>, rücken alle nachfolgenden Sensoren eine Position auf.</p>
+<p>PRTGs „SNMP Custom Table"-Sensor fragt bei jedem Poll die <strong>exakte OID ab, die beim Anlegen ermittelt wurde</strong> (inkl. der numerischen Zeilennummer) – er sucht die Zeile <strong>nicht</strong> anhand des zuvor angezeigten Namens neu. <strong>Praktische Folge:</strong> Wird ein Sensor mittendrin gelöscht, kann ein bestehender PRTG-Sensor ab diesem Zeitpunkt unbemerkt die Werte eines <strong>anderen</strong> physischen Sensors unter dem alten Namen anzeigen, statt einfach auf „keine Daten" zu gehen.</p>
+<p><strong>Empfehlung:</strong> Nach jedem Löschen eines Sensors/IOs im TemperaturWatch-Web-UI die zugehörigen PRTG-Sensoren kontrollieren (Werte-Plausibilität prüfen) und im Zweifel neu anlegen. Wer das umgehen möchte: neue Sensoren im Web-UI nur ans Ende der Liste anhängen und gelöschte Einträge nicht durch neue ersetzen, sondern deaktiviert lassen (Firmware bietet dafür aktuell keinen „deaktiviert"-Schalter – alternativ: gelöschten Sensor-Slot mit einem Platzhalter-Eintrag belegen, statt ihn zu entfernen). Dieselbe Einschränkung gilt im Prinzip auch für CheckMK, wirkt sich dort aber weniger aus, weil dessen Discovery-Mechanismus bei jedem Lauf über die <code>id</code> statt über die reine Tabellenposition matcht.</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Symptom</th>
+<th>Wahrscheinliche Ursache</th>
+<th>Lösung</th>
+</tr></thead><tbody>
+<tr>
+<td>Gerät/Sensor bleibt „Down", keine Antwort</td>
+<td>UDP/161 blockiert, SNMP-Agent nicht aktiviert, falsche IP</td>
+<td>Firmware-Log/Web-UI → „SNMP" → „Aktiviert" prüfen; Neustart nach Aktivierung nicht vergessen; Firewall zwischen PRTG-Probe und Gerät prüfen (<code>Test-NetConnection &lt;ip&gt; -Port 161</code> in PowerShell auf dem Probe-Rechner, falls verfügbar)</td>
+</tr>
+<tr>
+<td>„Down" mit Hinweis auf falsche Zugangsdaten</td>
+<td>Community-String stimmt nicht überein, oder falsche SNMP-Version (v3 statt v1/v2c) gewählt</td>
+<td>Community-String 1:1 mit Web-UI → „SNMP" abgleichen; explizit v1 <strong>oder</strong> v2c wählen</td>
+</tr>
+<tr>
+<td><code>SNMP Custom Table</code>-Assistent findet beim „OID auflösen" keine Zeilen</td>
+<td>Noch keine Sensoren/IOs im Web-UI angelegt, oder falsche Table-OID (Tippfehler)</td>
+<td>Erst mindestens einen Sensor im TemperaturWatch-Web-UI anlegen; OID exakt wie in <a href="#oid-referenz">OID-Referenz</a> prüfen (Basis-OID <strong>ohne</strong> abschließende Spaltennummer)</td>
+</tr>
+<tr>
+<td>Temperaturwerte wirken um Faktor 10 zu hoch/niedrig</td>
+<td>Divisionsfaktor im Kanal vergessen</td>
+<td>Siehe <a href="#4-kanäle-skalieren-benennen-limits-setzen">Schritt 4</a>: Division = 10 setzen</td>
+</tr>
+<tr>
+<td>Feuchte-Kanal zeigt dauerhaft <code>-0.1</code></td>
+<td>Sensor ist ein Dallas-Sensor (kein Feuchtewert vorhanden), Firmware liefert bewusst <code>-1</code> als „nicht verfügbar"</td>
+<td>Kanal für diese Zeile ausblenden</td>
+</tr>
+<tr>
+<td>Nach Sensor-Löschung im Web-UI zeigt ein PRTG-Sensor plötzlich falsche/andere Werte</td>
+<td>Index-Verschiebung, siehe <a href="#bekannte-einschränkung-index-verschiebung">oben</a></td>
+<td>Betroffenen PRTG-Sensor neu anlegen</td>
+</tr>
+</tbody></table></div>
+<h2 id="alternative-rest-api-basierter-custom-sensor">Alternative: REST-API-basierter Custom-Sensor</h2>
+<p>Für mehr Flexibilität (sprechende Namen ohne Spalten-Gefrickel, Zugriff auf Felder, die die SNMP-MIB nicht abbildet – z.B. ob ein Ausgang gerade über eine Schwellwert-Regel automatisch gesteuert wird) kann alternativ die <a href="REST_API.md">REST-API</a> direkt angesprochen werden, über einen PRTG <strong>„EXE/Skript Advanced"-Sensor</strong>. Das erfordert ein Skript im <code>Custom Sensors\EXEXML</code>-Ordner <strong>des jeweiligen Probe-Rechners</strong> (bei Remote-Probes also nicht zentral am Core-Server) und damit etwas mehr Wartungsaufwand als die reine SNMP-Variante – dafür liefert es beliebig viele/flexible Kanäle direkt aus <code>GET /api/sensors</code> und <code>GET /api/io</code>, ohne die Index-Verschiebungs-Problematik von oben (die REST-API matcht immer über die stabile <code>id</code>, nicht über eine Tabellenposition).</p>
+<p>Minimalbeispiel (PowerShell, <code>temperaturwatch_sensors.ps1</code>, erwartet die Geräte-IP als Parameter <code>%host</code> aus PRTG):</p>
+<pre><code class="language-powershell">param([string]$DeviceIp)
+
+$ErrorActionPreference = &quot;Stop&quot;
+$sensors = Invoke-RestMethod -Uri &quot;http://$DeviceIp/api/sensors&quot; -Method Get -TimeoutSec 10
+
+$xml = New-Object System.Text.StringBuilder
+[void]$xml.Append(&quot;&lt;prtg&gt;&quot;)
+foreach ($s in $sensors) {
+    $name = if ($s.label) { $s.label } else { $s.id }
+    if ($s.has_reading -and $s.last_read_ok) {
+        [void]$xml.Append(&quot;&lt;result&gt;&lt;channel&gt;$([System.Security.SecurityElement]::Escape($name)) Temp.&lt;/channel&gt;&lt;value&gt;$([math]::Round($s.temperature_c * 100))&lt;/value&gt;&lt;float&gt;1&lt;/float&gt;&lt;divisor&gt;100&lt;/divisor&gt;&lt;unit&gt;Custom&lt;/unit&gt;&lt;customunit&gt;°C&lt;/customunit&gt;&lt;/result&gt;&quot;)
+        if ($s.PSObject.Properties.Name -contains &quot;humidity_pct&quot;) {
+            [void]$xml.Append(&quot;&lt;result&gt;&lt;channel&gt;$([System.Security.SecurityElement]::Escape($name)) Feuchte&lt;/channel&gt;&lt;value&gt;$([math]::Round($s.humidity_pct * 100))&lt;/value&gt;&lt;float&gt;1&lt;/float&gt;&lt;divisor&gt;100&lt;/divisor&gt;&lt;unit&gt;Custom&lt;/unit&gt;&lt;customunit&gt;%&lt;/customunit&gt;&lt;/result&gt;&quot;)
+        }
+    }
+}
+[void]$xml.Append(&quot;&lt;/prtg&gt;&quot;)
+Write-Output $xml.ToString()</code></pre>
+<p>Einrichtung: Skript nach <code>&lt;PRTG-Installationsverzeichnis&gt;\Custom Sensors\EXEXML\</code> auf dem Probe-Rechner kopieren → am Gerät <strong>Sensor hinzufügen</strong> → <code>EXE/Skript Advanced</code> → Skript auswählen → als Parameter <code>%host</code> eintragen (übergibt automatisch die im Gerät hinterlegte IP-Adresse). Für produktiven Einsatz empfiehlt sich zusätzlich HTTP-Basic-Auth-Handling (<code>-Headers @{Authorization = "Basic ..."}</code>) analog zu den <a href="REST_API.md#authentifizierung">REST-API-Beispielen</a>, falls der Login auf dem Gerät aktiviert ist, sowie sauberes Error-Handling (PRTG erwartet bei Fehlern ein <code>&lt;error&gt;1&lt;/error&gt;&lt;text&gt;...&lt;/text&gt;</code>-Ergebnis statt eines Skriptabbruchs).</p>
+<h2 id="oid-referenz">OID-Referenz</h2>
+<p>Alle OIDs relativ zur privaten Basis-OID <code>1.3.6.1.4.1.99999.1</code> (Platzhalter-PEN, nicht bei der IANA registriert). Ausführlicher Kontext im <a href="../README.md#snmp">README</a>.</p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>OID</th>
+<th>Typ</th>
+<th>Inhalt</th>
+</tr></thead><tbody>
+<tr>
+<td><code>.1.1.0</code></td>
+<td>OCTET STRING</td>
+<td>sysDescr (privat)</td>
+</tr>
+<tr>
+<td><code>.1.2.0</code></td>
+<td>TIMETICKS</td>
+<td>sysUpTime (privat)</td>
+</tr>
+<tr>
+<td><code>.1.3.0</code></td>
+<td>OCTET STRING</td>
+<td>sysName (privat)</td>
+</tr>
+<tr>
+<td><code>.1.4.0</code></td>
+<td>OCTET STRING</td>
+<td>sysContact (privat)</td>
+</tr>
+<tr>
+<td><code>.1.5.0</code></td>
+<td>OCTET STRING</td>
+<td>sysLocation (privat)</td>
+</tr>
+<tr>
+<td><code>.2.1.0</code></td>
+<td>INTEGER</td>
+<td>sensorCount</td>
+</tr>
+<tr>
+<td><code>.2.2.1.1.&lt;n&gt;</code></td>
+<td>INTEGER</td>
+<td>sensorIndex (1-basiert, <strong>nicht persistent</strong>, siehe <a href="#bekannte-einschränkung-index-verschiebung">Einschränkung</a>)</td>
+</tr>
+<tr>
+<td><code>.2.2.1.2.&lt;n&gt;</code></td>
+<td>OCTET STRING</td>
+<td>sensorId</td>
+</tr>
+<tr>
+<td><code>.2.2.1.3.&lt;n&gt;</code></td>
+<td>OCTET STRING</td>
+<td>sensorLabel</td>
+</tr>
+<tr>
+<td><code>.2.2.1.4.&lt;n&gt;</code></td>
+<td>OCTET STRING</td>
+<td>sensorType (<code>dallas</code>/<code>dht11</code>/<code>am2301</code>)</td>
+</tr>
+<tr>
+<td><code>.2.2.1.5.&lt;n&gt;</code></td>
+<td>INTEGER</td>
+<td>sensorTemperatureX10 (°C ×10; <code>-32768</code> = keine gültige Messung)</td>
+</tr>
+<tr>
+<td><code>.2.2.1.6.&lt;n&gt;</code></td>
+<td>INTEGER</td>
+<td>sensorHumidityX10 (% ×10; <code>-1</code> = nicht verfügbar, z.B. bei Dallas)</td>
+</tr>
+<tr>
+<td><code>.2.2.1.7.&lt;n&gt;</code></td>
+<td>INTEGER</td>
+<td>sensorValid (<code>1</code>/<code>0</code>)</td>
+</tr>
+<tr>
+<td><code>.2.2.1.8.&lt;n&gt;</code></td>
+<td>INTEGER</td>
+<td>sensorAgeSeconds (Sekunden seit letzter Messung)</td>
+</tr>
+<tr>
+<td><code>.3.1.0</code></td>
+<td>INTEGER</td>
+<td>ioCount</td>
+</tr>
+<tr>
+<td><code>.3.2.1.1.&lt;n&gt;</code></td>
+<td>INTEGER</td>
+<td>ioIndex (1-basiert, nicht persistent)</td>
+</tr>
+<tr>
+<td><code>.3.2.1.2.&lt;n&gt;</code></td>
+<td>OCTET STRING</td>
+<td>ioId</td>
+</tr>
+<tr>
+<td><code>.3.2.1.3.&lt;n&gt;</code></td>
+<td>OCTET STRING</td>
+<td>ioLabel</td>
+</tr>
+<tr>
+<td><code>.3.2.1.4.&lt;n&gt;</code></td>
+<td>OCTET STRING</td>
+<td>ioType (<code>output</code>/<code>input</code>)</td>
+</tr>
+<tr>
+<td><code>.3.2.1.5.&lt;n&gt;</code></td>
+<td>INTEGER</td>
+<td>ioState (<code>1</code>=Ein, <code>0</code>=Aus)</td>
+</tr>
+</tbody></table></div>
+<p>Zusätzlich beantwortet das Gerät die Standard-MIB-II-<code>system</code>-Gruppe unter <code>1.3.6.1.2.1.1.{1..7}.0</code> (sysDescr…sysServices) – relevant für PRTGs/anderer Tools generische Geräte-Erkennung, siehe <a href="#2-grundprüfung-erreichbarkeit">Schritt 2</a>.</p>

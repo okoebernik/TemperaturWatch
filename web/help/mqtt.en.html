@@ -1,0 +1,186 @@
+<h1 id="connecting-temperaturwatch-via-mqtt">Connecting TemperaturWatch via MQTT</h1>
+<p>Guide to setting up the MQTT integration: broker configuration in the Web UI, a complete topic reference with example payloads, IO control via MQTT, securing the connection with TLS, and examples for Home Assistant, Node-RED, and the command line (<code>mosquitto_pub</code>/<code>mosquitto_sub</code>). For the REST API and SNMP, see <a href="REST_API.en.md">docs/REST_API.en.md</a> and <a href="PRTG_SETUP.en.md">docs/PRTG_SETUP.en.md</a>.</p>
+<h2 id="contents">Contents</h2>
+<ul><li><a href="#prerequisites">Prerequisites</a></li><li><a href="#1-set-up-mqtt-in-the-web-ui">1. Set up MQTT in the Web UI</a></li><li><a href="#2-test-the-connection">2. Test the Connection</a></li><li><a href="#3-topic-reference">3. Topic Reference</a></li><li><a href="#4-receiving-sensor-values">4. Receiving Sensor Values</a></li><li><a href="#5-switching-digital-outputs-via-mqtt">5. Switching Digital Outputs via MQTT</a></li><li><a href="#6-monitoring-connection-status-last-will">6. Monitoring Connection Status (Last Will)</a></li><li><a href="#7-securing-with-tls-mqtts">7. Securing with TLS (mqtts://)</a></li><li><a href="#8-integrating-with-home-assistant">8. Integrating with Home Assistant</a></li><li><a href="#9-integrating-with-node-red">9. Integrating with Node-RED</a></li><li><a href="#troubleshooting">Troubleshooting</a></li><li><a href="#security-notes">Security Notes</a></li></ul>
+<h2 id="prerequisites">Prerequisites</h2>
+<ul><li>A reachable MQTT broker (e.g. <a href="https://mosquitto.org/" target="_blank" rel="noopener">Mosquitto</a>, EMQX, HiveMQ, or a cloud broker). For local testing, a plain Mosquitto instance with no extra configuration is enough.</li><li>Network connectivity from the TemperaturWatch device to the broker (default port <strong>1883</strong> unencrypted, <strong>8883</strong> for TLS – depending on the broker configuration).</li><li>Optional: <a href="https://mosquitto.org/man/mosquitto_pub-1.html" target="_blank" rel="noopener"><code>mosquitto_pub</code>/<code>mosquitto_sub</code></a> on a test machine, to watch/publish topics without additional software.</li></ul>
+<h2 id="1-set-up-mqtt-in-the-web-ui">1. Set up MQTT in the Web UI</h2>
+<ol><li>Open the Web UI → <strong>"MQTT"</strong> menu item.</li><li>Enable <strong>"Enabled"</strong>.</li><li>Enter the <strong>Broker URI</strong> – <strong>required once enabled</strong>, must start with <code>mqtt://</code> (unencrypted) or <code>mqtts://</code> (TLS, see <a href="#7-securing-with-tls-mqtts">Section 7</a>), e.g.:</li></ol>
+<pre><code>   mqtt://192.168.1.20:1883</code></pre>
+<ol><li><strong>Username/Password</strong> – only fill in if the broker requires authentication (leave blank for an anonymous connection). Leaving the password blank when editing later keeps the previously set value – for security reasons it is never returned in plain text.</li><li><strong>Base topic</strong> – prefix for all of this device's topics (default <code>temperaturwatch</code>). With <strong>multiple TemperaturWatch devices on the same broker</strong>, assign a unique value per device here (e.g. <code>temperaturwatch/keller</code>, <code>temperaturwatch/dachboden</code>), otherwise the devices' retained messages will overwrite each other.</li><li><strong>Publish interval (s)</strong> – how often sensor/IO values are published automatically (default 30s, minimum 5s – smaller values are raised to 5s server-side).</li><li><strong>Client ID</strong> – optional; leave blank and the MQTT library automatically generates a unique ID. Set it explicitly if the broker expects fixed client IDs (e.g. for ACLs), or with multiple devices, to tell them apart uniquely in broker logs.</li><li><strong>Save.</strong></li></ol>
+<blockquote><p><strong>No restart required:</strong> Unlike Wi-Fi or SNMP settings, an MQTT configuration change takes effect <strong>immediately</strong> – the existing client is automatically disconnected on save and reconnected with the new configuration.</p></blockquote>
+<h2 id="2-test-the-connection">2. Test the Connection</h2>
+<p>Capture all topics live at once (test machine with <code>mosquitto_sub</code>, on the same network as the broker):</p>
+<pre><code class="language-bash">mosquitto_sub -h 192.168.1.20 -t &quot;temperaturwatch/#&quot; -v</code></pre>
+<p>On success, this appears right after the device establishes a connection:</p>
+<pre><code>temperaturwatch/status online
+temperaturwatch/sensor/aussentemperatur/temperature_c 21.50
+temperaturwatch/sensor/keller/temperature_c 17.80
+temperaturwatch/sensor/keller/humidity_pct 62.30
+temperaturwatch/io/lueftungsrelais/state ON</code></pre>
+<p>If nothing appears, see <a href="#troubleshooting">Troubleshooting</a>. Alternatively, the Web UI shows a status badge under "MQTT" (<strong>connected</strong> / <strong>disconnected</strong> / <strong>disabled</strong>), and the live connection status is also shown under "System" → "Device Information".</p>
+<h2 id="3-topic-reference">3. Topic Reference</h2>
+<p>All topics below the configured <strong>base topic</strong> (<code>&lt;base&gt;</code>, default <code>temperaturwatch</code>):</p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Topic</th>
+<th>Direction</th>
+<th>QoS</th>
+<th>Retained</th>
+<th>Payload</th>
+<th>Description</th>
+</tr></thead><tbody>
+<tr>
+<td><code>&lt;base&gt;/status</code></td>
+<td>Publish</td>
+<td>1</td>
+<td>yes</td>
+<td><code>online</code> / <code>offline</code></td>
+<td>Connection status; <code>offline</code> is sent by the broker as the <strong>Last Will</strong> if the connection is closed uncleanly (see <a href="#6-monitoring-connection-status-last-will">Section 6</a>)</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;/sensor/&lt;id&gt;/temperature_c</code></td>
+<td>Publish</td>
+<td>0</td>
+<td>no</td>
+<td>e.g. <code>21.50</code></td>
+<td>Only when a valid reading is available; <code>&lt;id&gt;</code> = the sensor's <code>id</code> from the configuration</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;/sensor/&lt;id&gt;/humidity_pct</code></td>
+<td>Publish</td>
+<td>0</td>
+<td>no</td>
+<td>e.g. <code>62.30</code></td>
+<td>Only for DHT11/AM2301 with a valid reading (Dallas sensors do not provide a humidity topic)</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;/io/&lt;id&gt;/state</code></td>
+<td>Publish</td>
+<td>0</td>
+<td><strong>yes</strong></td>
+<td><code>ON</code> / <code>OFF</code></td>
+<td>For every configured IO (inputs <strong>and</strong> outputs), on every publish cycle</td>
+</tr>
+<tr>
+<td><code>&lt;base&gt;/io/&lt;id&gt;/set</code></td>
+<td><strong>Subscribe</strong></td>
+<td>1</td>
+<td>–</td>
+<td><code>ON</code>/<code>OFF</code>/<code>1</code>/<code>0</code>/<code>true</code>/<code>false</code></td>
+<td>Switches an output – see <a href="#5-switching-digital-outputs-via-mqtt">Section 5</a></td>
+</tr>
+</tbody></table></div>
+<p><strong>Timing:</strong> The first publish cycle (all sensors/IOs) runs <strong>immediately after the connection is established</strong>, not only after the first interval elapses. After that, it follows the configured <code>publish_interval_s</code> cadence.</p>
+<p><strong>Retained vs. non-retained:</strong> <code>status</code> and <code>io/&lt;id&gt;/state</code> are <em>retained</em> – a newly connected client (e.g. <code>mosquitto_sub</code>, Node-RED, Home Assistant) sees the last known value immediately, even without the device having just published again. Temperature/humidity values are <strong>not</strong> retained, so that stale readings don't remain stuck showing as "current" if a sensor is removed or the device is offline for a long time.</p>
+<h2 id="4-receiving-sensor-values">4. Receiving Sensor Values</h2>
+<p>The payload is always a plain numeric string (<code>%.2f</code>, dot as the decimal separator), <strong>not JSON</strong> – deliberately minimalistic, to stay compatible with practically any MQTT-capable system (Home Assistant, Node-RED, Grafana via an MQTT data source, ioBroker, …) without payload parsing.</p>
+<pre><code class="language-bash"># Watch a single sensor
+mosquitto_sub -h 192.168.1.20 -t &quot;temperaturwatch/sensor/aussentemperatur/temperature_c&quot;
+# -&gt; 21.50
+# -&gt; 21.60
+# -&gt; 21.50</code></pre>
+<p>A sensor with no valid reading (probe not connected, read error) simply publishes <strong>no</strong> update for that cycle – there is no explicit error topic. To detect sensor failures, use either the REST API (<code>has_reading</code>/ <code>last_read_ok</code> in <a href="REST_API.en.md#get-apisensors"><code>GET /api/sensors</code></a>) or an application-side timeout (e.g. Home Assistant's <code>expire_after</code>, see <a href="#8-integrating-with-home-assistant">Section 8</a>).</p>
+<h2 id="5-switching-digital-outputs-via-mqtt">5. Switching Digital Outputs via MQTT</h2>
+<p>Publish to <code>&lt;base&gt;/io/&lt;id&gt;/set</code> with one of the following payloads: <code>ON</code>, <code>on</code>, <code>true</code>, <code>1</code> → switches on; <strong>anything else</strong> (including <code>OFF</code>, <code>false</code>, <code>0</code>, an empty string) → switches off. Case doesn't matter for <code>ON</code>/<code>TRUE</code>; for <code>1</code> it must be exactly the digit <code>1</code>.</p>
+<pre><code class="language-bash">mosquitto_pub -h 192.168.1.20 -t &quot;temperaturwatch/io/lueftungsrelais/set&quot; -m &quot;ON&quot;
+mosquitto_pub -h 192.168.1.20 -t &quot;temperaturwatch/io/lueftungsrelais/set&quot; -m &quot;OFF&quot;</code></pre>
+<p>The new state is then confirmed automatically (within the next publish cycle) on <code>&lt;base&gt;/io/lueftungsrelais/state</code>.</p>
+<blockquote><p>⚠️ <strong>Rule conflict:</strong> Just like manual switching via the REST API/Web UI, <code>.../set</code> has <strong>no effect</strong> on outputs with an active threshold rule (see <a href="REST_API.en.md#post-apiioset"><code>POST /api/io/set</code></a>) – the rule keeps control in that case. The MQTT handler does not acknowledge this with an error topic; only a warning appears in the device log. From the outside, the only visible sign is that <code>.../state</code> doesn't change despite <code>.../set</code> having been sent.</p></blockquote>
+<h2 id="6-monitoring-connection-status-last-will">6. Monitoring Connection Status (Last Will)</h2>
+<p><code>&lt;base&gt;/status</code> is published as <code>online</code> (retained) right when the connection is established. If the connection drops <strong>uncleanly</strong> (power outage, network failure, crash – not a planned restart via the Web UI), the <strong>broker</strong> detects this via the MQTT Last Will mechanism and automatically publishes <code>offline</code> (retained) to the same topic – even if the device itself has long since stopped responding. This makes for a simple, broker-guaranteed online/offline indicator, independent of sensor timeouts:</p>
+<pre><code class="language-bash">mosquitto_sub -h 192.168.1.20 -t &quot;temperaturwatch/status&quot; -v
+# -&gt; temperaturwatch/status online
+# (device powered off)
+# -&gt; temperaturwatch/status offline</code></pre>
+<h2 id="7-securing-with-tls-mqtts">7. Securing with TLS (mqtts://)</h2>
+<p>For connections over untrusted networks (the internet, shared VLANs), TLS should be used:</p>
+<ol><li>Switch the broker URI to <code>mqtts://</code>, e.g. <code>mqtts://mein-broker.example.com:8883</code>.</li><li>In the <strong>"CA certificate (for mqtts://, optional)"</strong> field, paste the broker's PEM-encoded CA certificate (multi-line, including <code>-----BEGIN CERTIFICATE-----</code>/<code>-----END CERTIFICATE-----</code>). For publicly signed certificates (e.g. Let's Encrypt via a cloud broker), the respective certificate authority's root CA certificate is often enough; for self-signed/internal brokers, use your own CA or server certificate.</li><li>Save – the connection is immediately re-established with TLS (no restart needed, see <a href="#1-set-up-mqtt-in-the-web-ui">Section 1</a>).</li></ol>
+<p>Client certificates (mTLS) are <strong>not</strong> currently supported – only server certificate verification via the stored CA certificate, plus optional username/password authentication over TLS.</p>
+<h2 id="8-integrating-with-home-assistant">8. Integrating with Home Assistant</h2>
+<p>The firmware does <strong>not</strong> implement MQTT discovery (<code>homeassistant/...</code> topics) – entities must be created manually in <code>configuration.yaml</code>. Example for a temperature/humidity sensor and a switchable relay:</p>
+<pre><code class="language-yaml">mqtt:
+  sensor:
+    - name: &quot;Outdoor temperature&quot;
+      state_topic: &quot;temperaturwatch/sensor/aussentemperatur/temperature_c&quot;
+      unit_of_measurement: &quot;°C&quot;
+      device_class: temperature
+      state_class: measurement
+      expire_after: 120   # mark as &quot;unavailable&quot; if 2 cycles (default interval 30s×4) are missed
+    - name: &quot;Basement humidity&quot;
+      state_topic: &quot;temperaturwatch/sensor/keller/humidity_pct&quot;
+      unit_of_measurement: &quot;%&quot;
+      device_class: humidity
+      state_class: measurement
+      expire_after: 120
+
+  switch:
+    - name: &quot;Fan relay&quot;
+      state_topic: &quot;temperaturwatch/io/lueftungsrelais/state&quot;
+      command_topic: &quot;temperaturwatch/io/lueftungsrelais/set&quot;
+      payload_on: &quot;ON&quot;
+      payload_off: &quot;OFF&quot;
+      state_on: &quot;ON&quot;
+      state_off: &quot;OFF&quot;
+      # command_topic has no effect on outputs with an active threshold rule (see Section 5) -
+      # the switch will still display the state correctly, but cannot be toggled manually.</code></pre>
+<p><code>expire_after</code> is recommended because, as described in <a href="#4-receiving-sensor-values">Section 4</a>, the firmware simply stops sending updates on sensor failure instead of publishing an error value; without <code>expire_after</code>, Home Assistant would otherwise keep showing the last (stale) reading as current indefinitely.</p>
+<h2 id="9-integrating-with-node-red">9. Integrating with Node-RED</h2>
+<p>Subscribing an <code>mqtt in</code> node to the topic <code>temperaturwatch/#</code> (wildcard) delivers <code>msg.topic</code> and <code>msg.payload</code> (string) for every message. Example function node for splitting it apart:</p>
+<pre><code class="language-javascript">const parts = msg.topic.split(&quot;/&quot;);
+// [&quot;temperaturwatch&quot;, &quot;sensor&quot;, &quot;&lt;id&gt;&quot;, &quot;temperature_c&quot;] or [&quot;temperaturwatch&quot;, &quot;io&quot;, &quot;&lt;id&gt;&quot;, &quot;state&quot;]
+if (parts[1] === &quot;sensor&quot;) {
+    msg.payload = { id: parts[2], field: parts[3], value: parseFloat(msg.payload) };
+    return msg;
+}
+if (parts[1] === &quot;io&quot; &amp;&amp; parts[3] === &quot;state&quot;) {
+    msg.payload = { id: parts[2], state: msg.payload === &quot;ON&quot; };
+    return msg;
+}
+return null;</code></pre>
+<p>To switch: an <code>mqtt out</code> node on <code>temperaturwatch/io/&lt;id&gt;/set</code> with payload <code>ON</code>/<code>OFF</code> (e.g. fed from a dashboard switch node).</p>
+<h2 id="troubleshooting">Troubleshooting</h2>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Symptom</th>
+<th>Likely Cause</th>
+<th>Solution</th>
+</tr></thead><tbody>
+<tr>
+<td>Web UI badge permanently shows "disconnected"</td>
+<td>Broker unreachable, wrong port, firewall</td>
+<td>Test with <code>mosquitto_sub</code>/<code>telnet &lt;broker-ip&gt; 1883</code> from another machine on the same network; check the broker log for incoming connection attempts</td>
+</tr>
+<tr>
+<td>Save fails with 400</td>
+<td><code>broker_uri</code> is missing or doesn't start with <code>mqtt://</code>/<code>mqtts://</code></td>
+<td>Check the prefix, see <a href="#1-set-up-mqtt-in-the-web-ui">Section 1</a></td>
+</tr>
+<tr>
+<td>Connection is established but drops again immediately (<code>status</code> flaps online/offline)</td>
+<td>The broker requires authentication but the username/password are missing or incorrect; or a client ID collision with another client on the same broker</td>
+<td>Check the credentials; if multiple devices/clients use the same fixed client ID, assign unique client IDs or leave the field blank (automatic generation)</td>
+</tr>
+<tr>
+<td><code>mqtts://</code> connection fails, <code>mqtt://</code> works</td>
+<td>CA certificate missing/incorrect, or the broker certificate isn't covered by the stored CA certificate</td>
+<td>Check the certificate chain (<code>openssl s_client -connect &lt;broker&gt;:8883 -showcerts</code>); paste exactly the root/intermediate CA certificate that signed the broker</td>
+</tr>
+<tr>
+<td><code>.../set</code> doesn't change <code>.../state</code></td>
+<td>The output has an active threshold rule</td>
+<td>Remove the rule in the Web UI under "IOs", or adjust the rule condition so the desired state is reached – manual switching is fundamentally blocked while a rule is active</td>
+</tr>
+<tr>
+<td>Humidity topic never appears for a sensor</td>
+<td>The sensor is of type <code>dallas</code> (does not provide humidity by design)</td>
+<td>Expected – only DHT11/AM2301 publish <code>humidity_pct</code></td>
+</tr>
+<tr>
+<td>Values only become visible after a long delay</td>
+<td><code>publish_interval_s</code> is set high</td>
+<td>Reduce the interval in the Web UI under "MQTT" (minimum 5s); however, the first publish after connecting always happens immediately</td>
+</tr>
+</tbody></table></div>
+<h2 id="security-notes">Security Notes</h2>
+<ul><li>If the Web UI login (HTTP Basic Auth, see <a href="REST_API.en.md#login-http-basic-auth"><code>/api/auth/config</code></a>) is enabled, it <strong>only</strong> protects access to the Web UI/REST API – <strong>not</strong> MQTT access. Protecting the MQTT channel is entirely up to the broker (username/password, ACLs, TLS).</li><li>Like all other configuration data, MQTT credentials and the CA certificate are stored unencrypted in internal NVS storage, but are never returned unmasked via the REST API/Web UI (see <a href="REST_API.en.md#basics">REST API basics</a>).</li><li>The default QoS for sensor values is deliberately <strong>0</strong> (no delivery confirmation, no duplicate handling needed) – on unstable connections, individual readings can therefore be lost without this being noticeable during normal operation. For critical use cases (e.g. alarm outputs), it's advisable to add monitoring via REST API polling or SNMP as a cross-check, rather than relying on MQTT exclusively.</li><li>For broker access from the internet: always use TLS (<code>mqtts://</code>) <strong>and</strong> authentication, along with broker-side ACLs, so that not every connected client can switch arbitrary outputs (the firmware itself does not check permissions in the <code>.../set</code> handler – anyone who can publish to the topic can switch the corresponding output).</li></ul>

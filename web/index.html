@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TemperaturWatch</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="statusbar" id="statusbar">
+  <div class="statusbar__item" id="sb-network">
+    <span class="statusbar__dot" id="sb-network-dot"></span>
+    <span data-i18n="statusbar.network">Netzwerk</span>
+    <span class="statusbar__value" id="sb-network-value">&ndash;</span>
+  </div>
+  <div class="statusbar__item" id="sb-mqtt">
+    <span class="statusbar__dot" id="sb-mqtt-dot"></span>
+    <span>MQTT</span>
+    <span class="statusbar__value" id="sb-mqtt-value">&ndash;</span>
+  </div>
+  <div class="statusbar__item" id="sb-snmp">
+    <span class="statusbar__dot" id="sb-snmp-dot"></span>
+    <span>SNMP</span>
+    <span class="statusbar__value" id="sb-snmp-value">&ndash;</span>
+  </div>
+  <div class="statusbar__spacer"></div>
+  <div class="statusbar__clock" id="sb-clock" title="">--:--:--</div>
+</div>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar__brand">
+      <span class="sidebar__brand-dot" id="brand-dot"></span>
+      TemperaturWatch
+    </div>
+    <nav class="nav" id="nav">
+      <button class="nav__item" data-route="dashboard">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        <span data-i18n="nav.dashboard">Dashboard</span>
+      </button>
+      <button class="nav__item" data-route="sensors">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2v10.5a4 4 0 1 0 4 0V2Z"/><path d="M10 8h4"/></svg>
+        <span data-i18n="nav.sensors">Sensoren</span>
+      </button>
+      <button class="nav__item" data-route="io">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 12h.01M11 12h.01M15 12h.01"/></svg>
+        <span data-i18n="nav.io">IOs</span>
+      </button>
+      <button class="nav__item" data-route="network">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.5a10 10 0 0 1 14 0M8 15.5a6 6 0 0 1 8 0M11.5 18.5a2 2 0 0 1 1 0"/><circle cx="12" cy="19" r="0.6" fill="currentColor" stroke="none"/></svg>
+        <span data-i18n="nav.network">Netzwerk</span>
+      </button>
+      <button class="nav__item" data-route="mqtt">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a4 4 0 0 1 4-4h1M20 12a4 4 0 0 1-4 4h-1M8 8l-2-2M8 8l-2 2M16 16l2 2M16 16l2-2"/></svg>
+        <span data-i18n="nav.mqtt">MQTT</span>
+      </button>
+      <button class="nav__item" data-route="snmp">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 18v-5a9 9 0 0 1 18 0v5"/><rect x="1.5" y="17" width="4" height="5" rx="1"/><rect x="18.5" y="17" width="4" height="5" rx="1"/></svg>
+        <span data-i18n="nav.snmp">SNMP</span>
+      </button>
+      <button class="nav__item" data-route="system">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 9 19.36a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.64 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.64a1.7 1.7 0 0 0 1.04-1.56V3a2 2 0 1 1 4 0v.09A1.7 1.7 0 0 0 15 4.64a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.36 9a1.7 1.7 0 0 0 1.56 1.04H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+        <span data-i18n="nav.system">System</span>
+      </button>
+      <button class="nav__item" data-route="help">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 2-3 4"/><path d="M12 17.5v.01"/></svg>
+        <span data-i18n="nav.help">Hilfe</span>
+      </button>
+    </nav>
+    <div class="sidebar__footer">
+      <span class="muted" style="font-size:.78rem" id="footer-ip">&ndash;</span>
+      <button class="theme-toggle" id="lang-toggle" data-i18n-title="lang.toggle.title" title="Sprache wechseln">
+        <span id="lang-toggle-label" style="font-size:.72rem;font-weight:700">DE</span>
+      </button>
+      <button class="theme-toggle" id="theme-toggle" data-i18n-title="theme.toggle.title" title="Theme wechseln">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div class="row">
+        <button class="menu-btn" id="menu-btn" aria-label="Menu">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <div>
+          <h1 id="page-title">Dashboard</h1>
+        </div>
+      </div>
+      <div class="topbar__meta" id="topbar-meta"></div>
+    </div>
+
+    <!-- ===================== Dashboard ===================== -->
+    <section class="section" id="section-dashboard">
+      <p class="section-lead" data-i18n="dashboard.lead">Live-Messwerte und Ausgangszustände.</p>
+
+      <div class="panel">
+        <div class="panel__header"><h2 data-i18n="dashboard.sensors.title">Sensoren</h2></div>
+        <div id="dash-sensors" class="grid"><p class="skeleton" data-i18n="common.loading">Lade…</p></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel__header"><h2 data-i18n="dashboard.io.title">Digitale IOs</h2></div>
+        <div id="dash-io" class="grid"><p class="skeleton" data-i18n="common.loading">Lade…</p></div>
+      </div>
+    </section>
+
+    <!-- ===================== Sensoren ===================== -->
+    <section class="section" id="section-sensors">
+      <p class="section-lead" data-i18n="sensors.lead">Dallas-1-Wire-, DHT11- und AM2301-Sensoren verwalten.</p>
+      <div class="panel">
+        <div class="panel__header">
+          <h2 data-i18n="sensors.configured.title">Konfigurierte Sensoren</h2>
+          <button class="btn btn--primary" id="btn-add-sensor" data-i18n="sensors.add">+ Sensor</button>
+        </div>
+        <div id="sensors-table"><p class="skeleton" data-i18n="common.loading">Lade…</p></div>
+      </div>
+    </section>
+
+    <!-- ===================== IOs ===================== -->
+    <section class="section" id="section-io">
+      <p class="section-lead" data-i18n="io.lead">Digitale Ein- und Ausgänge, optional mit Schwellwert-Regel.</p>
+      <div class="panel">
+        <div class="panel__header">
+          <h2 data-i18n="io.configured.title">Konfigurierte IOs</h2>
+          <button class="btn btn--primary" id="btn-add-io" data-i18n="io.add">+ IO</button>
+        </div>
+        <div id="io-table"><p class="skeleton" data-i18n="common.loading">Lade…</p></div>
+      </div>
+    </section>
+
+    <!-- ===================== Netzwerk ===================== -->
+    <section class="section" id="section-network">
+      <p class="section-lead" data-i18n="network.lead">WLAN-Zugangsdaten (über den ESP32-C6) und Geräte-Hostname. Ethernet ist immer aktiv und benötigt keine Konfiguration.</p>
+      <div class="panel" style="max-width:520px">
+        <div class="panel__header"><h2 data-i18n="network.wifi.title">WLAN</h2></div>
+        <form id="form-network">
+          <div class="field">
+            <label for="net-ssid" data-i18n="field.ssid">SSID</label>
+            <input type="text" id="net-ssid" maxlength="32">
+          </div>
+          <div class="field">
+            <label for="net-password" data-i18n="field.password">Passwort</label>
+            <input type="password" id="net-password" data-i18n-placeholder="placeholder.password.keep" placeholder="unverändert lassen = altes Passwort behalten" maxlength="63">
+          </div>
+          <div class="field">
+            <label for="net-hostname" data-i18n="field.hostname">Hostname (mDNS)</label>
+            <input type="text" id="net-hostname" maxlength="31">
+            <p class="field-hint" data-i18n-html="hint.hostname">Gerät erreichbar unter &lt;hostname&gt;.local</p>
+          </div>
+          <div class="form-actions">
+            <span class="muted" style="font-size:.8rem;align-self:center" data-i18n="hint.restart.required">Änderungen wirken erst nach einem Neustart.</span>
+            <button type="submit" class="btn btn--primary" data-i18n="btn.save">Speichern</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel" style="max-width:520px">
+        <div class="panel__header">
+          <h2 data-i18n="time.title">Uhrzeit (NTP)</h2>
+          <span class="badge" id="time-badge"><span class="dot"></span>&nbsp;&ndash;</span>
+        </div>
+        <form id="form-time">
+          <div class="field field--check">
+            <label class="switch"><input type="checkbox" id="time-enabled"><span class="switch__track"></span></label>
+            <label for="time-enabled" style="margin:0" data-i18n="field.enabled">Aktiviert</label>
+          </div>
+          <div class="field">
+            <label for="time-ntp-server" data-i18n="field.ntp.server">NTP-Server</label>
+            <input type="text" id="time-ntp-server" placeholder="pool.ntp.org">
+          </div>
+          <div class="field">
+            <label for="time-timezone" data-i18n="field.timezone">Zeitzone</label>
+            <select id="time-timezone"></select>
+          </div>
+          <div class="field" id="time-timezone-custom-wrap" style="display:none">
+            <label for="time-timezone-custom" data-i18n="field.timezone.custom">Benutzerdefinierter POSIX-TZ-String</label>
+            <input type="text" id="time-timezone-custom" placeholder="CET-1CEST,M3.5.0,M10.5.0/3">
+            <p class="field-hint" data-i18n="hint.timezone.custom">Format nach POSIX-TZ-Syntax, z.B. "CET-1CEST,M3.5.0,M10.5.0/3".</p>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" data-i18n="btn.save">Speichern</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===================== MQTT ===================== -->
+    <section class="section" id="section-mqtt">
+      <p class="section-lead" data-i18n="mqtt.lead">Sensor-/IO-Werte veröffentlichen und Ausgänge per MQTT steuern.</p>
+      <div class="panel" style="max-width:560px">
+        <div class="panel__header">
+          <h2 data-i18n="mqtt.broker.title">MQTT-Broker</h2>
+          <span class="badge" id="mqtt-badge"><span class="dot"></span>&nbsp;–</span>
+        </div>
+        <form id="form-mqtt">
+          <div class="field field--check">
+            <label class="switch"><input type="checkbox" id="mqtt-enabled"><span class="switch__track"></span></label>
+            <label for="mqtt-enabled" style="margin:0" data-i18n="field.enabled">Aktiviert</label>
+          </div>
+          <div class="field">
+            <label for="mqtt-uri" data-i18n="field.broker.uri">Broker-URI</label>
+            <input type="text" id="mqtt-uri" placeholder="mqtt://192.168.1.10:1883">
+          </div>
+          <div class="field field--row">
+            <div>
+              <label for="mqtt-user" data-i18n="field.username">Benutzername</label>
+              <input type="text" id="mqtt-user">
+            </div>
+            <div>
+              <label for="mqtt-pass" data-i18n="field.password">Passwort</label>
+              <input type="password" id="mqtt-pass" data-i18n-placeholder="placeholder.password.unchanged" placeholder="unverändert lassen">
+            </div>
+          </div>
+          <div class="field field--row">
+            <div>
+              <label for="mqtt-topic" data-i18n="field.base.topic">Basis-Topic</label>
+              <input type="text" id="mqtt-topic" placeholder="temperaturwatch">
+            </div>
+            <div>
+              <label for="mqtt-interval" data-i18n="field.publish.interval">Publish-Intervall (s)</label>
+              <input type="number" id="mqtt-interval" min="5" value="30">
+            </div>
+          </div>
+          <div class="field">
+            <label for="mqtt-client-id" data-i18n="field.client.id">Client-ID (optional)</label>
+            <input type="text" id="mqtt-client-id">
+          </div>
+          <div class="field">
+            <label for="mqtt-cacert" data-i18n="field.ca.cert">CA-Zertifikat (für mqtts://, optional)</label>
+            <textarea id="mqtt-cacert" placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" data-i18n="btn.save">Speichern</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===================== SNMP ===================== -->
+    <section class="section" id="section-snmp">
+      <p class="section-lead" data-i18n="snmp.lead">SNMPv1/v2c-Agent (UDP/161) mit eigener MIB für Sensor-/IO-Werte.</p>
+      <div class="panel" style="max-width:520px">
+        <div class="panel__header">
+          <h2 data-i18n="snmp.agent.title">SNMP-Agent</h2>
+          <span class="badge" id="snmp-badge"><span class="dot"></span>&nbsp;–</span>
+        </div>
+        <form id="form-snmp">
+          <div class="field field--check">
+            <label class="switch"><input type="checkbox" id="snmp-enabled"><span class="switch__track"></span></label>
+            <label for="snmp-enabled" style="margin:0" data-i18n="field.enabled">Aktiviert</label>
+          </div>
+          <div class="field">
+            <label for="snmp-community" data-i18n="field.community">Community-String</label>
+            <input type="text" id="snmp-community" placeholder="public">
+          </div>
+          <div class="field">
+            <label for="snmp-sysname" data-i18n="field.sysname">sysName</label>
+            <input type="text" id="snmp-sysname">
+          </div>
+          <div class="field field--row">
+            <div>
+              <label for="snmp-syscontact" data-i18n="field.syscontact">sysContact</label>
+              <input type="text" id="snmp-syscontact">
+            </div>
+            <div>
+              <label for="snmp-syslocation" data-i18n="field.syslocation">sysLocation</label>
+              <input type="text" id="snmp-syslocation">
+            </div>
+          </div>
+          <p class="field-hint" data-i18n="hint.snmp.base">Basis-OID: 1.3.6.1.4.1.99999.1 (Platzhalter-PEN). Aktivieren/Deaktivieren erfordert einen Neustart.</p>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" data-i18n="btn.save">Speichern</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===================== System ===================== -->
+    <section class="section" id="section-system">
+      <p class="section-lead" data-i18n="system.lead">Geräteinformationen, Zugriffsschutz und Wartung.</p>
+
+      <div class="panel" style="max-width:560px">
+        <div class="panel__header"><h2 data-i18n="system.info.title">Geräteinformationen</h2></div>
+        <div id="system-info" class="stack"><p class="skeleton" data-i18n="common.loading">Lade…</p></div>
+      </div>
+
+      <div class="panel" style="max-width:520px">
+        <div class="panel__header"><h2 data-i18n="system.login.title">Web-UI-Login</h2></div>
+        <form id="form-auth">
+          <div class="field field--check">
+            <label class="switch"><input type="checkbox" id="auth-enabled"><span class="switch__track"></span></label>
+            <label for="auth-enabled" style="margin:0" data-i18n="field.auth.enabled">HTTP-Basic-Auth aktiviert</label>
+          </div>
+          <div class="field">
+            <label for="auth-username" data-i18n="field.username">Benutzername</label>
+            <input type="text" id="auth-username" placeholder="admin">
+          </div>
+          <div class="field">
+            <label for="auth-password" data-i18n="field.password">Passwort</label>
+            <input type="password" id="auth-password" data-i18n-placeholder="placeholder.password.unchanged" placeholder="unverändert lassen">
+            <p class="field-hint" id="auth-password-hint"></p>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" data-i18n="btn.save">Speichern</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel" style="max-width:520px">
+        <div class="panel__header"><h2 data-i18n="system.maintenance.title">Wartung</h2></div>
+        <div class="stack">
+          <div class="row row--between">
+            <div>
+              <div style="font-weight:600" data-i18n="system.reboot.title">Neustart</div>
+              <div class="muted" style="font-size:.82rem" data-i18n="system.reboot.desc">Startet das Gerät neu, Konfiguration bleibt erhalten.</div>
+            </div>
+            <button class="btn" id="btn-reboot" data-i18n="btn.reboot">Neustart</button>
+          </div>
+          <hr class="divider">
+          <div class="row row--between">
+            <div>
+              <div style="font-weight:600" data-i18n="system.factory.title">Werkseinstellungen</div>
+              <div class="muted" style="font-size:.82rem" data-i18n="system.factory.desc">Löscht Netzwerk-, MQTT-, SNMP-, Sensor-, IO- und Login-Konfiguration.</div>
+            </div>
+            <button class="btn btn--danger" id="btn-factory-reset" data-i18n="btn.factory.reset">Zurücksetzen</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="max-width:520px">
+        <div class="panel__header"><h2 data-i18n="system.ota.title">Firmware-Update (OTA)</h2></div>
+        <form id="form-ota">
+          <div class="field">
+            <label for="ota-file" data-i18n="field.ota.file">Firmware-Datei (.bin)</label>
+            <input type="file" id="ota-file" accept=".bin">
+          </div>
+          <div class="field" id="ota-progress-wrap" style="display:none">
+            <div class="progress-bar"><div class="progress-bar__fill" id="ota-progress-fill"></div></div>
+          </div>
+          <p class="field-hint" data-i18n="hint.ota">Wird in den inaktiven OTA-Slot geschrieben. Bei Erfolg startet das Gerät
+            automatisch mit der neuen Firmware; startet sie nicht sauber, wird beim nächsten Neustart
+            automatisch auf die vorherige Version zurückgerollt.</p>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" id="btn-ota-upload" data-i18n="btn.upload.install">Hochladen &amp; installieren</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="panel" style="max-width:520px">
+        <div class="panel__header"><h2 data-i18n="system.ota.web.title">Web-UI-Update</h2></div>
+        <form id="form-ota-web">
+          <div class="field">
+            <label for="ota-web-file" data-i18n="field.ota.web.file">Dateisystem-Image (www.bin)</label>
+            <input type="file" id="ota-web-file" accept=".bin">
+          </div>
+          <div class="field" id="ota-web-progress-wrap" style="display:none">
+            <div class="progress-bar"><div class="progress-bar__fill" id="ota-web-progress-fill"></div></div>
+          </div>
+          <p class="field-hint" data-i18n-html="hint.ota.web">Aktualisiert nur das Web-UI (aus <code>build/www.bin</code>), unabhängig von der
+            Firmware. Kein Neustart nötig; während des Uploads ist das Web-UI kurz nicht erreichbar, die
+            REST-API bleibt es.</p>
+          <div class="form-actions">
+            <button type="submit" class="btn btn--primary" id="btn-ota-web-upload" data-i18n="btn.upload.install">Hochladen &amp; installieren</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ===================== Hilfe ===================== -->
+    <section class="section" id="section-help">
+      <p class="section-lead" data-i18n="help.lead">Anleitungen zu REST-API, MQTT und PRTG – auch offline auf dem Gerät verfügbar.</p>
+      <div class="help-layout">
+        <nav class="help-nav" id="help-nav">
+          <button class="help-nav__item" data-help-topic="rest-api" data-i18n="help.topic.restapi">REST-API</button>
+          <button class="help-nav__item" data-help-topic="mqtt" data-i18n="help.topic.mqtt">MQTT</button>
+          <button class="help-nav__item" data-help-topic="prtg" data-i18n="help.topic.prtg">PRTG</button>
+        </nav>
+        <div class="panel help-content" id="help-content">
+          <p class="skeleton" data-i18n="common.loading">Lade…</p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ===================== Dialoge ===================== -->
+
+<dialog id="dialog-sensor">
+  <div class="dialog__body">
+    <h3 class="dialog__title" id="sensor-dialog-title" data-i18n="sensor.dialog.add.title">Sensor hinzufügen</h3>
+    <form id="form-sensor">
+      <input type="hidden" id="sensor-edit-id">
+      <div class="field">
+        <label for="sensor-type" data-i18n="field.type">Typ</label>
+        <select id="sensor-type">
+          <option value="dallas" data-i18n="sensor.type.dallas">Dallas DS18B20 (1-Wire-Bus)</option>
+          <option value="dht11" data-i18n="sensor.type.dht11">DHT11</option>
+          <option value="am2301" data-i18n="sensor.type.am2301">AM2301 / DHT21 / DHT22</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="sensor-label" data-i18n="field.label">Bezeichnung</label>
+        <input type="text" id="sensor-label" data-i18n-placeholder="placeholder.sensor.label" placeholder="z.B. Außentemperatur" maxlength="47">
+      </div>
+      <div class="field">
+        <label data-i18n="field.gpio">GPIO</label>
+        <div class="pin-grid" id="sensor-pin-grid"></div>
+      </div>
+      <div id="sensor-dallas-block">
+        <div class="field">
+          <div class="row row--between">
+            <label style="margin:0" data-i18n="field.romid">1-Wire-ROM-ID</label>
+            <button type="button" class="btn btn--sm" id="btn-scan-bus" data-i18n="btn.scan.bus">Bus scannen</button>
+          </div>
+          <select id="sensor-rom-id">
+            <option value="" data-i18n="option.first.device">Erstes gefundenes Gerät</option>
+          </select>
+          <p class="field-hint" id="scan-status"></p>
+        </div>
+      </div>
+      <div class="field">
+        <label for="sensor-interval" data-i18n="field.poll.interval">Poll-Intervall (s)</label>
+        <input type="number" id="sensor-interval" min="2" value="10">
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn" data-close-dialog="dialog-sensor" data-i18n="btn.cancel">Abbrechen</button>
+        <button type="submit" class="btn btn--primary" data-i18n="btn.save">Speichern</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="dialog-io">
+  <div class="dialog__body">
+    <h3 class="dialog__title" id="io-dialog-title" data-i18n="io.dialog.add.title">IO hinzufügen</h3>
+    <form id="form-io">
+      <input type="hidden" id="io-edit-id">
+      <div class="field">
+        <label for="io-type" data-i18n="field.type">Typ</label>
+        <select id="io-type">
+          <option value="output" data-i18n="io.type.output">Digitaler Ausgang</option>
+          <option value="input" data-i18n="io.type.input">Digitaler Eingang</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="io-label" data-i18n="field.label">Bezeichnung</label>
+        <input type="text" id="io-label" data-i18n-placeholder="placeholder.io.label" placeholder="z.B. Lüfter-Relais" maxlength="47">
+      </div>
+      <div class="field">
+        <label data-i18n="field.gpio">GPIO</label>
+        <div class="pin-grid" id="io-pin-grid"></div>
+      </div>
+      <div class="field field--check">
+        <label class="switch"><input type="checkbox" id="io-invert"><span class="switch__track"></span></label>
+        <label for="io-invert" style="margin:0" data-i18n="field.invert">Invertiert (active-low)</label>
+      </div>
+      <div id="io-output-block">
+        <div class="field field--check">
+          <label class="switch"><input type="checkbox" id="io-initial-state"><span class="switch__track"></span></label>
+          <label for="io-initial-state" style="margin:0" data-i18n="field.initial.state">Start-Zustand: EIN</label>
+        </div>
+        <hr class="divider">
+        <div class="field field--check">
+          <label class="switch"><input type="checkbox" id="io-rule-enabled"><span class="switch__track"></span></label>
+          <label for="io-rule-enabled" style="margin:0" data-i18n="field.rule.enabled">Schwellwert-Regel</label>
+        </div>
+        <div id="io-rule-block">
+          <div class="field">
+            <label for="io-rule-sensor" data-i18n="field.rule.sensor">Sensor</label>
+            <select id="io-rule-sensor"></select>
+          </div>
+          <div class="field field--row">
+            <div>
+              <label for="io-rule-field" data-i18n="field.rule.field">Messwert</label>
+              <select id="io-rule-field">
+                <option value="temperature_c" data-i18n="option.temperature">Temperatur</option>
+                <option value="humidity_pct" data-i18n="option.humidity">Luftfeuchtigkeit</option>
+              </select>
+            </div>
+            <div>
+              <label for="io-rule-op" data-i18n="field.rule.op">Bedingung</label>
+              <select id="io-rule-op">
+                <option value="gt" data-i18n-html="op.gt">&gt; größer als</option>
+                <option value="gte" data-i18n-html="op.gte">&ge; größer/gleich</option>
+                <option value="lt" data-i18n-html="op.lt">&lt; kleiner als</option>
+                <option value="lte" data-i18n-html="op.lte">&le; kleiner/gleich</option>
+              </select>
+            </div>
+          </div>
+          <div class="field field--row">
+            <div>
+              <label for="io-rule-threshold" data-i18n="field.rule.threshold">Schwellwert</label>
+              <input type="number" id="io-rule-threshold" step="0.1" value="25">
+            </div>
+            <div>
+              <label for="io-rule-hysteresis" data-i18n="field.rule.hysteresis">Hysterese (optional)</label>
+              <input type="number" id="io-rule-hysteresis" step="0.1" min="0" value="0">
+            </div>
+          </div>
+          <p class="field-hint" data-i18n-html="hint.rule">Ausgang wird automatisch geschaltet, solange die Bedingung zutrifft. Manuelles Schalten ist dann deaktiviert.
+            Hysterese verhindert schnelles Ein-/Ausschalten nahe am Schwellwert: bei „&gt;"/„&ge;" schaltet der
+            Ausgang erst wieder aus, wenn der Messwert um die Hysterese unter den Schwellwert fällt (bei
+            „&lt;"/„&le;" umgekehrt erst aus, wenn er darüber steigt).</p>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="button" class="btn" data-close-dialog="dialog-io" data-i18n="btn.cancel">Abbrechen</button>
+        <button type="submit" class="btn btn--primary" data-i18n="btn.save">Speichern</button>
+      </div>
+    </form>
+  </div>
+</dialog>
+
+<dialog id="dialog-confirm">
+  <div class="dialog__body">
+    <h3 class="dialog__title" id="confirm-title" data-i18n="confirm.default.title">Bist du sicher?</h3>
+    <p class="muted" id="confirm-message"></p>
+    <div class="form-actions">
+      <button type="button" class="btn" data-close-dialog="dialog-confirm" data-i18n="btn.cancel">Abbrechen</button>
+      <button type="button" class="btn btn--danger" id="confirm-ok" data-i18n="confirm.ok">Bestätigen</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toasts" id="toasts"></div>
+
+<script src="/i18n.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

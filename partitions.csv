@@ -1,0 +1,10 @@
+# Name,     Type, SubType,  Offset,    Size,     Flags
+# 32 MB Flash. otadata+ota_0+ota_1 fuer OTA-Updates (Milestone 9): die
+# Firmware wird per Web-UI in den jeweils inaktiven Slot geschrieben, danach
+# schaltet der Bootloader auf den neuen Slot um.
+nvs,        data, nvs,      0x9000,    0x6000,
+phy_init,   data, phy,      0xf000,    0x1000,
+otadata,    data, ota,      0x10000,   0x2000,
+ota_0,      app,  ota_0,    0x20000,   0x400000,
+ota_1,      app,  ota_1,    0x420000,  0x400000,
+www,        data, spiffs,   0x820000,  0x200000,
