@@ -151,10 +151,11 @@ python scripts/md_to_help_html.py docs/REST_API.en.md web/help/rest-api.en.html
 # analog für MQTT_SETUP.md/.en.md -> mqtt.de/en.html und PRTG_SETUP.md/.en.md -> prtg.de/en.html
 ```
 
-> Cross-Referenzen der Art „siehe README" innerhalb der Hilfe-Texte verlinken relativ auf `../README.md`
-> bzw. `../README.en.md` – das funktioniert beim Lesen auf GitHub, aber **nicht** aus der In-App-Hilfe heraus
-> (die README liegt nicht mit im SPIFFS-Image). Bislang bewusst nicht aufgelöst, um den Konverter einfach zu
-> halten; betrifft nur einzelne Verweise, nicht den Hauptinhalt.
+> Cross-Referenzen der Art „siehe README" bzw. zwischen den drei Anleitungen verlinken im Quelltext relativ
+> (`../README.md`, `PRTG_SETUP.md` etc.) – das funktioniert beim Lesen auf GitHub. `scripts/md_to_help_html.py`
+> schreibt diese Links beim Konvertieren automatisch um: README-Referenzen zeigen auf die echte GitHub-URL
+> des Repos, Cross-Doc-Referenzen zwischen den Anleitungen werden zu SPA-internen Sprungmarken (kein
+> Seitenwechsel, bleibt innerhalb der In-App-Hilfe).
 
 ## Uhrzeit (NTP)
 

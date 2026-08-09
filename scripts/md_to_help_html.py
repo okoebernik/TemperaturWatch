@@ -37,7 +37,7 @@ DOC_TOPIC_MAP = {
     "MQTT_SETUP.en.md": "mqtt",
 }
 
-_README_RE = re.compile(r"^\.\./README(?:\.en)?\.md(#.*)?$")
+_README_RE = re.compile(r"^\.\./(README(?:\.en)?\.md)(#.*)?$")
 _CROSS_DOC_RE = re.compile(r"^([A-Za-z_]+\.(?:en\.)?md)(#.*)?$")
 
 
@@ -49,7 +49,10 @@ def resolve_link(href):
         return ("anchor", href)
     m = _README_RE.match(href)
     if m:
-        return ("external", GITHUB_REPO_URL + "/blob/main/README.md" + (m.group(1) or ""))
+        # "../README.md" -> .../blob/main/README.md, "../README.en.md" ->
+        # .../blob/main/README.en.md - Sprachvariante bleibt erhalten,
+        # statt beide auf dieselbe (deutsche) Datei zu biegen.
+        return ("external", GITHUB_REPO_URL + "/blob/main/" + m.group(1) + (m.group(2) or ""))
     m = _CROSS_DOC_RE.match(href)
     if m and m.group(1) in DOC_TOPIC_MAP:
         anchor = (m.group(2) or "").lstrip("#")
