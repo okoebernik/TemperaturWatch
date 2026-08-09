@@ -1,5 +1,5 @@
 <h1 id="temperaturwatch-rest-api-referenz">TemperaturWatch – REST-API-Referenz</h1>
-<p>Vollständige Referenz aller <code>/api/...</code>-Endpunkte der TemperaturWatch-Firmware, inkl. Feldbeschreibungen, Validierungsregeln, Beispiel-Requests (<code>curl</code>) und Beispiel-Responses. Für den schnellen Überblick siehe die kompakte Tabelle im <a href="../README.md#rest-api">README</a>; dieses Dokument beschreibt jeden Endpunkt im Detail.</p>
+<p>Vollständige Referenz aller <code>/api/...</code>-Endpunkte der TemperaturWatch-Firmware, inkl. Feldbeschreibungen, Validierungsregeln, Beispiel-Requests (<code>curl</code>) und Beispiel-Responses. Für den schnellen Überblick siehe die kompakte Tabelle im <a href="https://github.com/okoebernik/TemperaturWatch/blob/main/README.md#rest-api" target="_blank" rel="noopener">README</a>; dieses Dokument beschreibt jeden Endpunkt im Detail.</p>
 <h2 id="inhalt">Inhalt</h2>
 <ul><li><a href="#grundlagen">Grundlagen</a></li><li><a href="#authentifizierung">Authentifizierung</a></li><li><a href="#fehlerbehandlung">Fehlerbehandlung</a></li><li><a href="#system">System</a></li><li><a href="#get-apisysteminfo"><code>GET /api/system/info</code></a></li><li><a href="#post-apisystemreboot"><code>POST /api/system/reboot</code></a></li><li><a href="#post-apisystemfactory-reset"><code>POST /api/system/factory-reset</code></a></li><li><a href="#post-apisystemota"><code>POST /api/system/ota</code></a></li><li><a href="#post-apisystemota-web"><code>POST /api/system/ota-web</code></a></li><li><a href="#get-apiboardpins"><code>GET /api/board/pins</code></a></li><li><a href="#sensoren">Sensoren</a></li><li><a href="#get-apisensors"><code>GET /api/sensors</code></a></li><li><a href="#get-apisensorsconfig"><code>GET /api/sensors/config</code></a></li><li><a href="#put-apisensorsconfig"><code>PUT /api/sensors/config</code></a></li><li><a href="#get-apisensorsdallas-scan"><code>GET /api/sensors/dallas-scan</code></a></li><li><a href="#digitale-ios">Digitale IOs</a></li><li><a href="#get-apiio"><code>GET /api/io</code></a></li><li><a href="#get-apiioconfig"><code>GET /api/io/config</code></a></li><li><a href="#put-apiioconfig"><code>PUT /api/io/config</code></a></li><li><a href="#post-apiioset"><code>POST /api/io/set</code></a></li><li><a href="#netzwerk">Netzwerk</a></li><li><a href="#get-apinetworkconfig"><code>GET /api/network/config</code></a></li><li><a href="#put-apinetworkconfig"><code>PUT /api/network/config</code></a></li><li><a href="#uhrzeit-ntp">Uhrzeit (NTP)</a></li><li><a href="#get-apitimeconfig"><code>GET /api/time/config</code></a></li><li><a href="#put-apitimeconfig"><code>PUT /api/time/config</code></a></li><li><a href="#mqtt">MQTT</a></li><li><a href="#get-apimqttconfig"><code>GET /api/mqtt/config</code></a></li><li><a href="#put-apimqttconfig"><code>PUT /api/mqtt/config</code></a></li><li><a href="#snmp">SNMP</a></li><li><a href="#get-apisnmpconfig"><code>GET /api/snmp/config</code></a></li><li><a href="#put-apisnmpconfig"><code>PUT /api/snmp/config</code></a></li><li><a href="#login-http-basic-auth">Login (HTTP-Basic-Auth)</a></li><li><a href="#get-apiauthconfig"><code>GET /api/auth/config</code></a></li><li><a href="#put-apiauthconfig"><code>PUT /api/auth/config</code></a></li><li><a href="#vollständiger-workflow-beispiel-skript">Vollständiger Workflow (Beispiel-Skript)</a></li></ul>
 <h2 id="grundlagen">Grundlagen</h2>
@@ -149,7 +149,7 @@ curl -u admin:geheim http://192.168.1.50/api/system/info</code></pre>
 <tr>
 <td><code>snmp_listening</code></td>
 <td>bool</td>
-<td>SNMP-UDP-Listener läuft tatsächlich (kann trotz <code>snmp_enabled:true</code> <code>false</code> sein, falls die Aktivierung noch einen Neustart benötigt, siehe <a href="../README.md#snmp">README → SNMP</a>)</td>
+<td>SNMP-UDP-Listener läuft tatsächlich (kann trotz <code>snmp_enabled:true</code> <code>false</code> sein, falls die Aktivierung noch einen Neustart benötigt, siehe <a href="https://github.com/okoebernik/TemperaturWatch/blob/main/README.md#snmp" target="_blank" rel="noopener">README → SNMP</a>)</td>
 </tr>
 <tr>
 <td><code>auth_enabled</code></td>
@@ -1191,7 +1191,7 @@ curl -X PUT http://192.168.1.50/api/sensors/config \
 <td>Body kein JSON-Objekt (keine weiteren Feld-Validierungen)</td>
 </tr>
 </tbody></table></div>
-<blockquote><p>Details zur SNMP-MIB-Struktur (private MIB + Standard-MIB-II-<code>system</code>-Gruppe für Monitoring-Tools wie CheckMK/PRTG) siehe <a href="../README.md#snmp">README → SNMP</a>.</p></blockquote>
+<blockquote><p>Details zur SNMP-MIB-Struktur (private MIB + Standard-MIB-II-<code>system</code>-Gruppe für Monitoring-Tools wie CheckMK/PRTG) siehe <a href="https://github.com/okoebernik/TemperaturWatch/blob/main/README.md#snmp" target="_blank" rel="noopener">README → SNMP</a>.</p></blockquote>
 <hr>
 <h2 id="login-http-basic-auth">Login (HTTP-Basic-Auth)</h2>
 <h3 id="get-apiauthconfig"><code>GET /api/auth/config</code></h3>

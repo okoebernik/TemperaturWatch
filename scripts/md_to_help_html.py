@@ -16,6 +16,48 @@ import html
 import re
 import sys
 
+# Fuer die In-App-Hilfe (im Gegensatz zum Lesen der docs/*.md auf GitHub)
+# muessen zwei Arten von relativen Markdown-Links umgeschrieben werden:
+#  1. Cross-Doc-Links zwischen den drei Anleitungen (z.B. "PRTG_SETUP.md")
+#     zeigen im Web-UI ins Leere, da dort nur /help/<topic>.<lang>.html
+#     ausgeliefert wird, keine rohen .md-Dateien. Sie werden stattdessen zu
+#     einem speziellen "data-help-link"-Attribut, das app.js abfaengt und
+#     per JS zum passenden Hilfe-Thema wechselt (bleibt in der SPA).
+#  2. Referenzen auf die README (".. /README.md" bzw. ".. /README.en.md")
+#     werden auf die echte GitHub-URL des Repos umgebogen, da die README
+#     nicht mit ins SPIFFS-Image gepackt wird.
+GITHUB_REPO_URL = "https://github.com/okoebernik/TemperaturWatch"
+
+DOC_TOPIC_MAP = {
+    "REST_API.md": "rest-api",
+    "REST_API.en.md": "rest-api",
+    "PRTG_SETUP.md": "prtg",
+    "PRTG_SETUP.en.md": "prtg",
+    "MQTT_SETUP.md": "mqtt",
+    "MQTT_SETUP.en.md": "mqtt",
+}
+
+_README_RE = re.compile(r"^\.\./README(?:\.en)?\.md(#.*)?$")
+_CROSS_DOC_RE = re.compile(r"^([A-Za-z_]+\.(?:en\.)?md)(#.*)?$")
+
+
+def resolve_link(href):
+    """Liefert ein (kind, value)-Tupel: kind ist "anchor" (unveraendert
+    lassen), "external" (echte URL, in neuem Tab oeffnen) oder "internal"
+    (SPA-interner Hilfe-Link, value=(topic, anchor_ohne_#))."""
+    if href.startswith("#"):
+        return ("anchor", href)
+    m = _README_RE.match(href)
+    if m:
+        return ("external", GITHUB_REPO_URL + "/blob/main/README.md" + (m.group(1) or ""))
+    m = _CROSS_DOC_RE.match(href)
+    if m and m.group(1) in DOC_TOPIC_MAP:
+        anchor = (m.group(2) or "").lstrip("#")
+        return ("internal", (DOC_TOPIC_MAP[m.group(1)], anchor))
+    if href.startswith("http"):
+        return ("external", href)
+    return ("external", href)
+
 
 def slugify(text):
     # GitHub-Anchor-Algorithmus: Markdown-Inline-Syntax entfernen, lowercase,
@@ -30,14 +72,23 @@ def slugify(text):
     return text
 
 
+def render_link(label, href):
+    kind, value = resolve_link(href)
+    if kind == "internal":
+        topic, anchor = value
+        attrs = f'href="#" data-help-link="{topic}"'
+        if anchor:
+            attrs += f' data-help-anchor="{anchor}"'
+        return f"<a {attrs}>{label}</a>"
+    if kind == "external":
+        return f'<a href="{value}" target="_blank" rel="noopener">{label}</a>'
+    return f'<a href="{value}">{label}</a>'  # kind == "anchor"
+
+
 def inline(text):
     text = html.escape(text, quote=False)
     # Links zuerst (koennen **/`` enthalten)
-    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", lambda m: (
-        f'<a href="{m.group(2)}"'
-        + (' target="_blank" rel="noopener"' if m.group(2).startswith("http") else "")
-        + f'>{m.group(1)}</a>'
-    ), text)
+    text = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", lambda m: render_link(m.group(1), m.group(2)), text)
     text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
     text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
     # Einfache Italic-Syntax (*text*) NACH Bold behandeln, damit uebrig

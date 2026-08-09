@@ -979,6 +979,17 @@ function wireEvents() {
 
   // Globale Delegation: Bearbeiten/Löschen-Buttons in Tabellen, Dialog-Schliessen
   document.addEventListener("click", async (e) => {
+    const helpLink = e.target.closest("[data-help-link]");
+    if (helpLink) {
+      e.preventDefault();
+      await loadHelpTopic(helpLink.dataset.helpLink);
+      const anchor = helpLink.dataset.helpAnchor;
+      if (anchor) {
+        const target = document.getElementById(anchor);
+        if (target) target.scrollIntoView({ behavior: "smooth" });
+      }
+      return;
+    }
     const editSensor = e.target.closest("[data-edit-sensor]");
     if (editSensor) {
       openSensorDialog(state.sensorsConfig.find((s) => s.id === editSensor.dataset.editSensor));
