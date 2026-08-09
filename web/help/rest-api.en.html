@@ -963,7 +963,7 @@ curl -X PUT http://192.168.1.50/api/sensors/config \
 <p><strong>Example response (200):</strong></p>
 <pre><code class="language-json">{
   &quot;enabled&quot;: true,
-  &quot;broker_uri&quot;: &quot;mqtt://192.168.150.156:1883&quot;,
+  &quot;broker_uri&quot;: &quot;mqtt://192.168.1.20:1883&quot;,
   &quot;username&quot;: &quot;&quot;,
   &quot;password&quot;: &quot;&quot;,
   &quot;client_id&quot;: &quot;&quot;,
@@ -1044,7 +1044,7 @@ curl -X PUT http://192.168.1.50/api/sensors/config \
   -H &quot;Content-Type: application/json&quot; \
   -d &#x27;{
     &quot;enabled&quot;: true,
-    &quot;broker_uri&quot;: &quot;mqtt://192.168.150.156:1883&quot;,
+    &quot;broker_uri&quot;: &quot;mqtt://192.168.1.20:1883&quot;,
     &quot;base_topic&quot;: &quot;temperaturwatch&quot;,
     &quot;publish_interval_s&quot;: 30
   }&#x27;</code></pre>

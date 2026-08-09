@@ -773,7 +773,7 @@ curl http://192.168.1.50/api/mqtt/config
 ```json
 {
   "enabled": true,
-  "broker_uri": "mqtt://192.168.150.156:1883",
+  "broker_uri": "mqtt://192.168.1.20:1883",
   "username": "",
   "password": "",
   "client_id": "",
@@ -806,7 +806,7 @@ curl -X PUT http://192.168.1.50/api/mqtt/config \
   -H "Content-Type: application/json" \
   -d '{
     "enabled": true,
-    "broker_uri": "mqtt://192.168.150.156:1883",
+    "broker_uri": "mqtt://192.168.1.20:1883",
     "base_topic": "temperaturwatch",
     "publish_interval_s": 30
   }'
