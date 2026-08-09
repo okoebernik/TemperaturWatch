@@ -71,6 +71,15 @@ const I18N = {
     "hint.restart.required": "Änderungen wirken erst nach einem Neustart.",
     "btn.save": "Speichern",
 
+    "network.eth.static.title": "Ethernet – Statische IP",
+    "network.wifi.static.title": "WLAN – Statische IP",
+    "field.ip.address": "IP-Adresse",
+    "field.netmask": "Subnetzmaske",
+    "field.gateway": "Gateway",
+    "field.dns.optional": "DNS-Server (optional)",
+    "hint.static.ip": "Wenn deaktiviert, bezieht das jeweilige Interface seine Adresse per DHCP (Default).",
+    "toast.static.ip.invalid": "Ungültige statische IP-Konfiguration (Ethernet oder WLAN) – bitte IP-Adresse, Subnetzmaske und Gateway prüfen.",
+
     "mqtt.lead": "Sensor-/IO-Werte veröffentlichen und Ausgänge per MQTT steuern.",
     "mqtt.broker.title": "MQTT-Broker",
     "field.enabled": "Aktiviert",
@@ -309,6 +318,15 @@ const I18N = {
     "hint.hostname": "Device reachable at &lt;hostname&gt;.local",
     "hint.restart.required": "Changes take effect only after a restart.",
     "btn.save": "Save",
+
+    "network.eth.static.title": "Ethernet – Static IP",
+    "network.wifi.static.title": "WiFi – Static IP",
+    "field.ip.address": "IP address",
+    "field.netmask": "Subnet mask",
+    "field.gateway": "Gateway",
+    "field.dns.optional": "DNS server (optional)",
+    "hint.static.ip": "If disabled, the respective interface obtains its address via DHCP (default).",
+    "toast.static.ip.invalid": "Invalid static IP configuration (Ethernet or WiFi) – please check the IP address, subnet mask, and gateway.",
 
     "mqtt.lead": "Publish sensor/IO values and control outputs via MQTT.",
     "mqtt.broker.title": "MQTT broker",

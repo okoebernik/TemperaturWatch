@@ -148,6 +148,64 @@
             <input type="text" id="net-hostname" maxlength="31">
             <p class="field-hint" data-i18n-html="hint.hostname">Gerät erreichbar unter &lt;hostname&gt;.local</p>
           </div>
+
+          <hr class="divider">
+          <div class="field field--check">
+            <label class="switch"><input type="checkbox" id="eth-static-enabled"><span class="switch__track"></span></label>
+            <label for="eth-static-enabled" style="margin:0" data-i18n="network.eth.static.title">Ethernet – Statische IP</label>
+          </div>
+          <div id="eth-static-fields">
+            <div class="field field--row">
+              <div>
+                <label for="eth-static-ip" data-i18n="field.ip.address">IP-Adresse</label>
+                <input type="text" id="eth-static-ip" placeholder="192.168.1.100">
+              </div>
+              <div>
+                <label for="eth-static-netmask" data-i18n="field.netmask">Subnetzmaske</label>
+                <input type="text" id="eth-static-netmask" placeholder="255.255.255.0">
+              </div>
+            </div>
+            <div class="field field--row">
+              <div>
+                <label for="eth-static-gateway" data-i18n="field.gateway">Gateway</label>
+                <input type="text" id="eth-static-gateway" placeholder="192.168.1.1">
+              </div>
+              <div>
+                <label for="eth-static-dns" data-i18n="field.dns.optional">DNS-Server (optional)</label>
+                <input type="text" id="eth-static-dns" placeholder="192.168.1.1">
+              </div>
+            </div>
+          </div>
+
+          <hr class="divider">
+          <div class="field field--check">
+            <label class="switch"><input type="checkbox" id="wifi-static-enabled"><span class="switch__track"></span></label>
+            <label for="wifi-static-enabled" style="margin:0" data-i18n="network.wifi.static.title">WLAN – Statische IP</label>
+          </div>
+          <div id="wifi-static-fields">
+            <div class="field field--row">
+              <div>
+                <label for="wifi-static-ip" data-i18n="field.ip.address">IP-Adresse</label>
+                <input type="text" id="wifi-static-ip" placeholder="192.168.1.101">
+              </div>
+              <div>
+                <label for="wifi-static-netmask" data-i18n="field.netmask">Subnetzmaske</label>
+                <input type="text" id="wifi-static-netmask" placeholder="255.255.255.0">
+              </div>
+            </div>
+            <div class="field field--row">
+              <div>
+                <label for="wifi-static-gateway" data-i18n="field.gateway">Gateway</label>
+                <input type="text" id="wifi-static-gateway" placeholder="192.168.1.1">
+              </div>
+              <div>
+                <label for="wifi-static-dns" data-i18n="field.dns.optional">DNS-Server (optional)</label>
+                <input type="text" id="wifi-static-dns" placeholder="192.168.1.1">
+              </div>
+            </div>
+          </div>
+          <p class="field-hint" data-i18n="hint.static.ip">Wenn deaktiviert, bezieht das jeweilige Interface seine Adresse per DHCP (Default).</p>
+
           <div class="form-actions">
             <span class="muted" style="font-size:.8rem;align-self:center" data-i18n="hint.restart.required">Änderungen wirken erst nach einem Neustart.</span>
             <button type="submit" class="btn btn--primary" data-i18n="btn.save">Speichern</button>

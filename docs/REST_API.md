@@ -660,7 +660,9 @@ curl http://192.168.1.50/api/network/config
 {
   "wifi_ssid": "MeinNetzwerk",
   "wifi_password": "",
-  "hostname": "temperaturwatch"
+  "hostname": "temperaturwatch",
+  "eth_static": { "enabled": false, "ip": "", "netmask": "", "gateway": "", "dns": "" },
+  "wifi_static": { "enabled": false, "ip": "", "netmask": "", "gateway": "", "dns": "" }
 }
 ```
 
@@ -676,17 +678,44 @@ curl http://192.168.1.50/api/network/config
 | `wifi_ssid` | string | ja (muss als String vorhanden sein, leer erlaubt) | Max. 32 Zeichen. Leerer String = WLAN-Station bleibt inaktiv (nur Ethernet) |
 | `wifi_password` | string | nein | Max. 63 Zeichen. **Leer/weggelassen = bisheriges Passwort bleibt erhalten** (Write-if-nonempty-Muster, wie beim Login- und MQTT-Passwort) |
 | `hostname` | string | nein | Max. 31 Zeichen (mDNS-Name, erreichbar als `<hostname>.local`). Leer/weggelassen = bisheriger Wert bleibt erhalten |
+| `eth_static` | object | nein | Statische IP fürs Ethernet-Interface, siehe Unterobjekt unten. Fehlt das Feld komplett, bleibt der zuvor gespeicherte Wert erhalten |
+| `wifi_static` | object | nein | Statische IP fürs WLAN-Interface, gleiches Schema wie `eth_static` |
+
+`eth_static`/`wifi_static`-Unterobjekt:
+
+| Feld | Typ | Pflicht | Beschreibung |
+|---|---|---|---|
+| `enabled` | bool | nein | Default `false` (DHCP). `true` = das Interface bezieht seine Adresse **nicht mehr** per DHCP, sondern nutzt die unten stehenden Werte |
+| `ip` | string | ja, wenn `enabled:true` | IPv4-Adresse des Geräts, z.B. `192.168.1.100` |
+| `netmask` | string | ja, wenn `enabled:true` | Subnetzmaske, z.B. `255.255.255.0` |
+| `gateway` | string | ja, wenn `enabled:true` | Standard-Gateway, z.B. `192.168.1.1` |
+| `dns` | string | nein | Optionaler DNS-Server. Leer/weggelassen = kein expliziter DNS-Server gesetzt |
 
 > **Wichtig:** Änderungen werden erst nach einem Neustart wirksam (`POST /api/system/reboot`) – es gibt keinen
-> Live-Reconnect.
+> Live-Reconnect. Das gilt auch für die statische IP-Konfiguration: Ethernet und WLAN behalten bis zum
+> nächsten Neustart ihre aktuelle (DHCP-bezogene) Adresse, auch wenn `eth_static`/`wifi_static` bereits
+> aktiviert und gespeichert wurden.
 
-**Beispiel-Request** (WLAN-Zugangsdaten setzen, Hostname unverändert lassen):
+> ⚠️ Eine falsch eingetragene `ip`/`netmask`/`gateway`-Kombination macht das Gerät nach dem nächsten Neustart
+> ggf. über Netzwerk nicht mehr erreichbar (REST-API, Web-UI, SNMP, MQTT – alles hängt am selben Interface).
+> Wiederherstellung dann nur über eine serielle Verbindung möglich. Vor dem Aktivieren die Werte sorgfältig
+> prüfen, insbesondere wenn Ethernet und WLAN gleichzeitig aktiv sind und dieselbe statische IP oder
+> inkompatible Subnetze zugewiesen bekämen.
+
+**Beispiel-Request** (WLAN-Zugangsdaten setzen, Ethernet auf eine feste IP umstellen):
 ```bash
 curl -X PUT http://192.168.1.50/api/network/config \
   -H "Content-Type: application/json" \
   -d '{
     "wifi_ssid": "MeinNetzwerk",
-    "wifi_password": "sicheres-passwort123"
+    "wifi_password": "sicheres-passwort123",
+    "eth_static": {
+      "enabled": true,
+      "ip": "192.168.1.100",
+      "netmask": "255.255.255.0",
+      "gateway": "192.168.1.1",
+      "dns": "192.168.1.1"
+    }
   }'
 ```
 
@@ -696,7 +725,7 @@ curl -X PUT http://192.168.1.50/api/network/config \
 
 | Code | Bedingung |
 |---|---|
-| `400 Bad Request` | Body kein JSON-Objekt, oder `wifi_ssid` fehlt/ist kein String |
+| `400 Bad Request` | Body kein JSON-Objekt; `wifi_ssid` fehlt/ist kein String; `eth_static`/`wifi_static` ist kein Objekt; oder bei `enabled:true` fehlt/ist ungültig eine der Adressen `ip`/`netmask`/`gateway`/(falls angegeben) `dns` (muss jeweils eine gültige IPv4-Adresse in Punkt-Notation sein) |
 
 ---
 

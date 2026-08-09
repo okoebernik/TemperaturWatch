@@ -32,14 +32,21 @@ bool net_manager_wifi_connected(void);
 bool net_manager_eth_connected(void);
 
 // Aktuell gespeicherte Netzwerk-Konfiguration als JSON-Objekt
-// {wifi_ssid, wifi_password, hostname} (Aufrufer muss cJSON_Delete()
-// aufrufen). wifi_password wird aus Sicherheitsgruenden immer als leerer
-// String zurueckgeliefert.
+// {wifi_ssid, wifi_password, hostname, eth_static, wifi_static} (Aufrufer
+// muss cJSON_Delete() aufrufen). wifi_password wird aus Sicherheitsgruenden
+// immer als leerer String zurueckgeliefert. eth_static/wifi_static sind
+// je ein Unterobjekt {enabled, ip, netmask, gateway, dns} - fehlt "dns"
+// bzw. ist leer, wird kein expliziter DNS-Server gesetzt (DHCP-Server bzw.
+// Firmware-Default bleiben massgeblich). Ist "enabled" false (Default),
+// bezieht das jeweilige Interface seine Adresse weiterhin per DHCP.
 esp_err_t net_manager_get_config_json(cJSON **out_config);
 
 // Validiert und persistiert `config`. Ein leeres/fehlendes
-// "wifi_password"-Feld behaelt das zuvor gesetzte Passwort bei. Wirkt sich
-// erst nach einem Neustart aus (kein Live-Rekonfigurieren der laufenden
+// "wifi_password"-Feld behaelt das zuvor gesetzte Passwort bei. Bei
+// aktivierter statischer IP (eth_static.enabled bzw. wifi_static.enabled)
+// muessen ip/netmask/gateway gueltige IPv4-Adressen sein, sonst wird
+// ESP_ERR_INVALID_ARG geliefert und NICHTS gespeichert. Wirkt sich erst
+// nach einem Neustart aus (kein Live-Rekonfigurieren der laufenden
 // WLAN-Verbindung, um Randfaelle im esp-hosted-Stack zu vermeiden).
 esp_err_t net_manager_set_config_json(const cJSON *config);
 

@@ -549,11 +549,53 @@ function openIoDialog(existing) {
 // Netzwerk / MQTT / SNMP / Auth
 // ============================================================
 
+function updateStaticIpVisibility(prefix) {
+  const on = document.getElementById(`${prefix}-static-enabled`).checked;
+  document.getElementById(`${prefix}-static-fields`).style.display = on ? "" : "none";
+}
+
+function loadStaticIpFields(prefix, cfg) {
+  const c = cfg || {};
+  document.getElementById(`${prefix}-static-enabled`).checked = !!c.enabled;
+  document.getElementById(`${prefix}-static-ip`).value = c.ip || "";
+  document.getElementById(`${prefix}-static-netmask`).value = c.netmask || "";
+  document.getElementById(`${prefix}-static-gateway`).value = c.gateway || "";
+  document.getElementById(`${prefix}-static-dns`).value = c.dns || "";
+  updateStaticIpVisibility(prefix);
+}
+
+function readStaticIpFields(prefix) {
+  return {
+    enabled: document.getElementById(`${prefix}-static-enabled`).checked,
+    ip: document.getElementById(`${prefix}-static-ip`).value.trim(),
+    netmask: document.getElementById(`${prefix}-static-netmask`).value.trim(),
+    gateway: document.getElementById(`${prefix}-static-gateway`).value.trim(),
+    dns: document.getElementById(`${prefix}-static-dns`).value.trim(),
+  };
+}
+
+function isValidIPv4(s) {
+  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(s)) return false;
+  return s.split(".").every((part) => Number(part) <= 255);
+}
+
+// Clientseitige Vorpruefung, damit offensichtlich unvollstaendige/falsche
+// Eingaben nicht erst per Roundtrip vom Server abgelehnt werden. Die
+// eigentliche Validierung bleibt serverseitig (net_manager_set_config_json).
+function staticIpFieldsValid(cfg) {
+  if (!cfg.enabled) return true;
+  if (!isValidIPv4(cfg.ip) || !isValidIPv4(cfg.netmask) || !isValidIPv4(cfg.gateway)) return false;
+  if (cfg.dns && !isValidIPv4(cfg.dns)) return false;
+  return true;
+}
+
 async function loadNetworkForm() {
   const cfg = await api.get("/api/network/config");
   document.getElementById("net-ssid").value = cfg.wifi_ssid || "";
   document.getElementById("net-password").value = "";
   document.getElementById("net-hostname").value = cfg.hostname || "";
+  loadStaticIpFields("eth", cfg.eth_static);
+  loadStaticIpFields("wifi", cfg.wifi_static);
 }
 
 function populateTimezoneSelect() {
@@ -855,12 +897,22 @@ function wireEvents() {
   });
 
   // Netzwerk
+  document.getElementById("eth-static-enabled").addEventListener("change", () => updateStaticIpVisibility("eth"));
+  document.getElementById("wifi-static-enabled").addEventListener("change", () => updateStaticIpVisibility("wifi"));
   document.getElementById("form-network").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const ethStatic = readStaticIpFields("eth");
+    const wifiStatic = readStaticIpFields("wifi");
+    if (!staticIpFieldsValid(ethStatic) || !staticIpFieldsValid(wifiStatic)) {
+      toast(t("toast.static.ip.invalid"), "error");
+      return;
+    }
     const body = {
       wifi_ssid: document.getElementById("net-ssid").value.trim(),
       wifi_password: document.getElementById("net-password").value,
       hostname: document.getElementById("net-hostname").value.trim(),
+      eth_static: ethStatic,
+      wifi_static: wifiStatic,
     };
     try {
       await api.put("/api/network/config", body);

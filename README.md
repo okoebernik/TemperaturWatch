@@ -242,8 +242,21 @@ Bootloader dank `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE` automatisch auf die vorh
 curl -X POST --data-binary @build/www.bin http://<ip>/api/system/ota-web
 ```
 
+## Netzwerk: statische IP (optional)
+
+Ethernet und WLAN beziehen ihre Adresse standardmäßig per DHCP. Für beide Interfaces lässt sich unabhängig
+voneinander eine feste IP-Adresse (IP, Subnetzmaske, Gateway, optional DNS-Server) hinterlegen – unter
+„Netzwerk" im Web-UI oder über `PUT /api/network/config` (Felder `eth_static`/`wifi_static`, siehe
+[docs/REST_API.md](docs/REST_API.md#put-apinetworkconfig)). Bei aktivierter statischer IP wird beim
+Verbindungsaufbau der DHCP-Client des jeweiligen Interfaces gestoppt und die feste Adresse eingetragen;
+ohne aktivierte statische IP verhält sich das Interface wie bisher (DHCP). Wie bei WLAN-Zugangsdaten/Hostname
+wirkt eine Änderung erst nach einem Neustart.
+
+> ⚠️ Bei einer falsch eingetragenen Adresse/Gateway ist das Gerät über Netzwerk ggf. nicht mehr erreichbar –
+> Wiederherstellung dann nur über eine serielle Verbindung (`idf.py -p <PORT> monitor` + Werksreset über das
+> Web-UI, sofern noch erreichbar, oder erneuter Flash) möglich.
+
 ## Bekannte Grenzen / mögliche Erweiterungen
 
 - WLAN- und SNMP-Konfigurationsänderungen wirken erst nach einem Neustart (kein Live-Reconnect).
 - Digitale Eingänge nutzen einen internen Pull-up ohne konfigurierbare Entprellung.
-- Statische IP-Konfiguration (statt DHCP) ist nicht implementiert.

@@ -6,6 +6,7 @@
 #include "esp_wifi.h"
 #include "esp_eth.h"
 #include "esp_eth_mac_esp.h"
+#include "lwip/ip4_addr.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "mdns.h"
@@ -17,10 +18,23 @@
 
 static const char *TAG = "net_manager";
 
+// Statische IP-Konfiguration fuer genau ein Interface (Ethernet oder WLAN
+// haben unabhaengige Netifs in esp_netif und koennen daher auch
+// unabhaengig voneinander auf statische IPs umgestellt werden).
+typedef struct {
+    bool enabled;
+    char ip[16];
+    char netmask[16];
+    char gateway[16];
+    char dns[16]; // optional, leer = kein expliziter DNS-Server gesetzt
+} static_ip_config_t;
+
 typedef struct {
     char wifi_ssid[33];
     char wifi_password[64];
     char hostname[32];
+    static_ip_config_t eth_static;
+    static_ip_config_t wifi_static;
 } net_config_t;
 
 static net_config_t s_config;
@@ -30,6 +44,113 @@ static bool s_has_ip;
 static bool s_eth_connected;
 static bool s_wifi_connected;
 static bool s_mdns_started;
+
+// ipaddr_addr() (lwIP) liefert bei einem Parse-Fehler IPADDR_NONE
+// (0xFFFFFFFF) - identisch mit der (validen, aber fuer unsere Zwecke
+// irrelevanten) Broadcast-Adresse 255.255.255.255. Diese Mehrdeutigkeit
+// wird bewusst in Kauf genommen (klassische Einschraenkung von
+// inet_addr()-artigen APIs), niemand traegt sinnvollerweise
+// 255.255.255.255 als Geraete-/Gateway-Adresse ein.
+static bool is_valid_ipv4(const char *s)
+{
+    return s != NULL && s[0] != '\0' && ipaddr_addr(s) != IPADDR_NONE;
+}
+
+static void static_ip_to_json(cJSON *parent, const char *key, const static_ip_config_t *cfg)
+{
+    cJSON *o = cJSON_CreateObject();
+    cJSON_AddBoolToObject(o, "enabled", cfg->enabled);
+    cJSON_AddStringToObject(o, "ip", cfg->ip);
+    cJSON_AddStringToObject(o, "netmask", cfg->netmask);
+    cJSON_AddStringToObject(o, "gateway", cfg->gateway);
+    cJSON_AddStringToObject(o, "dns", cfg->dns);
+    cJSON_AddItemToObject(parent, key, o);
+}
+
+// Liest `key` (Unterobjekt {enabled, ip, netmask, gateway, dns}) aus
+// `parent`. Liefert false nur bei struktureller Ungueltigkeit (kein
+// Objekt) oder wenn enabled=true, aber ip/netmask/gateway fehlen/keine
+// gueltige IPv4-Adresse sind - dns ist optional, wird bei Angabe aber
+// ebenfalls validiert. Fehlt `key` komplett, bleibt *out unveraendert
+// (Default: deaktiviert).
+static bool parse_static_ip(const cJSON *parent, const char *key, static_ip_config_t *out)
+{
+    const cJSON *o = cJSON_GetObjectItem(parent, key);
+    if (o == NULL) {
+        return true;
+    }
+    if (!cJSON_IsObject(o)) {
+        return false;
+    }
+
+    static_ip_config_t parsed = { 0 };
+    const cJSON *jenabled = cJSON_GetObjectItem(o, "enabled");
+    parsed.enabled = cJSON_IsBool(jenabled) && cJSON_IsTrue(jenabled);
+
+    const cJSON *jip = cJSON_GetObjectItem(o, "ip");
+    if (cJSON_IsString(jip)) {
+        strlcpy(parsed.ip, jip->valuestring, sizeof(parsed.ip));
+    }
+    const cJSON *jmask = cJSON_GetObjectItem(o, "netmask");
+    if (cJSON_IsString(jmask)) {
+        strlcpy(parsed.netmask, jmask->valuestring, sizeof(parsed.netmask));
+    }
+    const cJSON *jgw = cJSON_GetObjectItem(o, "gateway");
+    if (cJSON_IsString(jgw)) {
+        strlcpy(parsed.gateway, jgw->valuestring, sizeof(parsed.gateway));
+    }
+    const cJSON *jdns = cJSON_GetObjectItem(o, "dns");
+    if (cJSON_IsString(jdns)) {
+        strlcpy(parsed.dns, jdns->valuestring, sizeof(parsed.dns));
+    }
+
+    if (parsed.enabled) {
+        if (!is_valid_ipv4(parsed.ip) || !is_valid_ipv4(parsed.netmask) || !is_valid_ipv4(parsed.gateway)) {
+            return false;
+        }
+        if (strlen(parsed.dns) > 0 && !is_valid_ipv4(parsed.dns)) {
+            return false;
+        }
+    }
+
+    *out = parsed;
+    return true;
+}
+
+// Deaktiviert DHCP auf `netif` und traegt die statische IP/Netmask/Gateway
+// (+ optional DNS) ein. Muss aufgerufen werden, NACHDEM das Interface einen
+// Link hat (ETHERNET_EVENT_CONNECTED bzw. WIFI_EVENT_STA_CONNECTED) - vorher
+// hat esp_netif noch keinen aktiven DHCP-Client, den man stoppen koennte,
+// und ein zu frueh gesetztes esp_netif_set_ip_info() wuerde von der
+// Default-Aktion des jeweiligen Treibers ueberschrieben. Analog zum
+// offiziellen ESP-IDF-Beispiel examples/protocols/static_ip.
+static void apply_static_ip(esp_netif_t *netif, const static_ip_config_t *cfg)
+{
+    if (netif == NULL || !cfg->enabled) {
+        return;
+    }
+    if (esp_netif_dhcpc_stop(netif) != ESP_OK) {
+        ESP_LOGW(TAG, "esp_netif_dhcpc_stop fehlgeschlagen (DHCP-Client evtl. bereits gestoppt)");
+    }
+    esp_netif_ip_info_t ip_info;
+    memset(&ip_info, 0, sizeof(ip_info));
+    ip_info.ip.addr = ipaddr_addr(cfg->ip);
+    ip_info.netmask.addr = ipaddr_addr(cfg->netmask);
+    ip_info.gw.addr = ipaddr_addr(cfg->gateway);
+    if (esp_netif_set_ip_info(netif, &ip_info) != ESP_OK) {
+        ESP_LOGE(TAG, "esp_netif_set_ip_info fehlgeschlagen fuer statische IP %s", cfg->ip);
+        return;
+    }
+    if (strlen(cfg->dns) > 0) {
+        esp_netif_dns_info_t dns_info;
+        memset(&dns_info, 0, sizeof(dns_info));
+        dns_info.ip.type = ESP_IPADDR_TYPE_V4;
+        dns_info.ip.u_addr.ip4.addr = ipaddr_addr(cfg->dns);
+        esp_netif_set_dns_info(netif, ESP_NETIF_DNS_MAIN, &dns_info);
+    }
+    ESP_LOGI(TAG, "Statische IP gesetzt: %s / %s, Gateway %s%s%s", cfg->ip, cfg->netmask, cfg->gateway,
+              strlen(cfg->dns) > 0 ? ", DNS " : "", strlen(cfg->dns) > 0 ? cfg->dns : "");
+}
 
 // Laedt die Netzwerk-Konfiguration aus dem Config-Store, mit den
 // Kconfig-Werten (CONFIG_TW_WIFI_SSID etc., siehe Milestone-2-Defaults) als
@@ -56,6 +177,10 @@ static void load_config(void)
     if (cJSON_IsString(jhost) && strlen(jhost->valuestring) > 0) {
         strlcpy(s_config.hostname, jhost->valuestring, sizeof(s_config.hostname));
     }
+    // Ungueltige gespeicherte statische IP-Konfiguration faellt beim Boot
+    // auf "deaktiviert" zurueck, statt den Start zu blockieren.
+    parse_static_ip(json, "eth_static", &s_config.eth_static);
+    parse_static_ip(json, "wifi_static", &s_config.wifi_static);
     cJSON_Delete(json);
 }
 
@@ -79,6 +204,7 @@ static void on_eth_event(void *arg, esp_event_base_t base, int32_t id, void *dat
     switch (id) {
     case ETHERNET_EVENT_CONNECTED:
         ESP_LOGI(TAG, "Ethernet: Link up");
+        apply_static_ip(s_eth_netif, &s_config.eth_static);
         break;
     case ETHERNET_EVENT_DISCONNECTED:
         ESP_LOGW(TAG, "Ethernet: Link down");
@@ -94,6 +220,8 @@ static void on_wifi_event(void *arg, esp_event_base_t base, int32_t id, void *da
 {
     if (id == WIFI_EVENT_STA_START) {
         esp_wifi_connect();
+    } else if (id == WIFI_EVENT_STA_CONNECTED) {
+        apply_static_ip(s_wifi_netif, &s_config.wifi_static);
     } else if (id == WIFI_EVENT_STA_DISCONNECTED) {
         ESP_LOGW(TAG, "WLAN getrennt, verbinde erneut ...");
         s_wifi_connected = false;
@@ -246,6 +374,8 @@ esp_err_t net_manager_get_config_json(cJSON **out_config)
     cJSON_AddStringToObject(o, "wifi_ssid", s_config.wifi_ssid);
     cJSON_AddStringToObject(o, "wifi_password", ""); // maskiert, siehe net_manager_set_config_json
     cJSON_AddStringToObject(o, "hostname", s_config.hostname);
+    static_ip_to_json(o, "eth_static", &s_config.eth_static);
+    static_ip_to_json(o, "wifi_static", &s_config.wifi_static);
     *out_config = o;
     return ESP_OK;
 }
@@ -256,7 +386,7 @@ esp_err_t net_manager_set_config_json(const cJSON *config)
         return ESP_ERR_INVALID_ARG;
     }
 
-    net_config_t new_cfg = s_config; // Passwort standardmaessig beibehalten
+    net_config_t new_cfg = s_config; // Passwort/statische IPs standardmaessig beibehalten
 
     const cJSON *jssid = cJSON_GetObjectItem(config, "wifi_ssid");
     if (!cJSON_IsString(jssid)) {
@@ -274,10 +404,19 @@ esp_err_t net_manager_set_config_json(const cJSON *config)
         strlcpy(new_cfg.hostname, jhost->valuestring, sizeof(new_cfg.hostname));
     }
 
+    if (!parse_static_ip(config, "eth_static", &new_cfg.eth_static)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!parse_static_ip(config, "wifi_static", &new_cfg.wifi_static)) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
     cJSON *to_store = cJSON_CreateObject();
     cJSON_AddStringToObject(to_store, "wifi_ssid", new_cfg.wifi_ssid);
     cJSON_AddStringToObject(to_store, "wifi_password", new_cfg.wifi_password);
     cJSON_AddStringToObject(to_store, "hostname", new_cfg.hostname);
+    static_ip_to_json(to_store, "eth_static", &new_cfg.eth_static);
+    static_ip_to_json(to_store, "wifi_static", &new_cfg.wifi_static);
     esp_err_t err = config_store_set_json(CONFIG_STORE_KEY_NETWORK, to_store);
     cJSON_Delete(to_store);
     if (err != ESP_OK) {
@@ -285,7 +424,7 @@ esp_err_t net_manager_set_config_json(const cJSON *config)
     }
 
     s_config = new_cfg;
-    ESP_LOGW(TAG, "Netzwerk-Konfiguration geaendert - WLAN-Verbindung und Hostname werden erst "
-                   "nach einem Neustart aktualisiert");
+    ESP_LOGW(TAG, "Netzwerk-Konfiguration geaendert - WLAN-Verbindung, Hostname und IP-Konfiguration "
+                   "werden erst nach einem Neustart aktualisiert");
     return ESP_OK;
 }

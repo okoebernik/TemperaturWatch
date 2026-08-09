@@ -827,7 +827,9 @@ curl -X PUT http://192.168.1.50/api/sensors/config \
 <pre><code class="language-json">{
   &quot;wifi_ssid&quot;: &quot;MeinNetzwerk&quot;,
   &quot;wifi_password&quot;: &quot;&quot;,
-  &quot;hostname&quot;: &quot;temperaturwatch&quot;
+  &quot;hostname&quot;: &quot;temperaturwatch&quot;,
+  &quot;eth_static&quot;: { &quot;enabled&quot;: false, &quot;ip&quot;: &quot;&quot;, &quot;netmask&quot;: &quot;&quot;, &quot;gateway&quot;: &quot;&quot;, &quot;dns&quot;: &quot;&quot; },
+  &quot;wifi_static&quot;: { &quot;enabled&quot;: false, &quot;ip&quot;: &quot;&quot;, &quot;netmask&quot;: &quot;&quot;, &quot;gateway&quot;: &quot;&quot;, &quot;dns&quot;: &quot;&quot; }
 }</code></pre>
 <blockquote><p><code>wifi_password</code> wird aus Sicherheitsgründen <strong>immer</strong> als leerer String zurückgegeben, unabhängig vom tatsächlich gespeicherten Passwort.</p></blockquote>
 <h3 id="put-apinetworkconfig"><code>PUT /api/network/config</code></h3>
@@ -857,14 +859,73 @@ curl -X PUT http://192.168.1.50/api/sensors/config \
 <td>nein</td>
 <td>Max. 31 Zeichen (mDNS-Name, erreichbar als <code>&lt;hostname&gt;.local</code>). Leer/weggelassen = bisheriger Wert bleibt erhalten</td>
 </tr>
+<tr>
+<td><code>eth_static</code></td>
+<td>object</td>
+<td>nein</td>
+<td>Statische IP fürs Ethernet-Interface, siehe Unterobjekt unten. Fehlt das Feld komplett, bleibt der zuvor gespeicherte Wert erhalten</td>
+</tr>
+<tr>
+<td><code>wifi_static</code></td>
+<td>object</td>
+<td>nein</td>
+<td>Statische IP fürs WLAN-Interface, gleiches Schema wie <code>eth_static</code></td>
+</tr>
 </tbody></table></div>
-<blockquote><p><strong>Wichtig:</strong> Änderungen werden erst nach einem Neustart wirksam (<code>POST /api/system/reboot</code>) – es gibt keinen Live-Reconnect.</p></blockquote>
-<p><strong>Beispiel-Request</strong> (WLAN-Zugangsdaten setzen, Hostname unverändert lassen):</p>
+<p><code>eth_static</code>/<code>wifi_static</code>-Unterobjekt:</p>
+<div class="help-table-wrap"><table>
+<thead><tr>
+<th>Feld</th>
+<th>Typ</th>
+<th>Pflicht</th>
+<th>Beschreibung</th>
+</tr></thead><tbody>
+<tr>
+<td><code>enabled</code></td>
+<td>bool</td>
+<td>nein</td>
+<td>Default <code>false</code> (DHCP). <code>true</code> = das Interface bezieht seine Adresse <strong>nicht mehr</strong> per DHCP, sondern nutzt die unten stehenden Werte</td>
+</tr>
+<tr>
+<td><code>ip</code></td>
+<td>string</td>
+<td>ja, wenn <code>enabled:true</code></td>
+<td>IPv4-Adresse des Geräts, z.B. <code>192.168.1.100</code></td>
+</tr>
+<tr>
+<td><code>netmask</code></td>
+<td>string</td>
+<td>ja, wenn <code>enabled:true</code></td>
+<td>Subnetzmaske, z.B. <code>255.255.255.0</code></td>
+</tr>
+<tr>
+<td><code>gateway</code></td>
+<td>string</td>
+<td>ja, wenn <code>enabled:true</code></td>
+<td>Standard-Gateway, z.B. <code>192.168.1.1</code></td>
+</tr>
+<tr>
+<td><code>dns</code></td>
+<td>string</td>
+<td>nein</td>
+<td>Optionaler DNS-Server. Leer/weggelassen = kein expliziter DNS-Server gesetzt</td>
+</tr>
+</tbody></table></div>
+<blockquote><p><strong>Wichtig:</strong> Änderungen werden erst nach einem Neustart wirksam (<code>POST /api/system/reboot</code>) – es gibt keinen Live-Reconnect. Das gilt auch für die statische IP-Konfiguration: Ethernet und WLAN behalten bis zum nächsten Neustart ihre aktuelle (DHCP-bezogene) Adresse, auch wenn <code>eth_static</code>/<code>wifi_static</code> bereits aktiviert und gespeichert wurden.</p></blockquote>
+<blockquote><p>⚠️ Eine falsch eingetragene <code>ip</code>/<code>netmask</code>/<code>gateway</code>-Kombination macht das Gerät nach dem nächsten Neustart ggf. über Netzwerk nicht mehr erreichbar (REST-API, Web-UI, SNMP, MQTT – alles hängt am selben Interface). Wiederherstellung dann nur über eine serielle Verbindung möglich. Vor dem Aktivieren die Werte sorgfältig prüfen, insbesondere wenn Ethernet und WLAN gleichzeitig aktiv sind und dieselbe statische IP oder inkompatible Subnetze zugewiesen bekämen.</p></blockquote>
+<p><strong>Beispiel-Request</strong> (WLAN-Zugangsdaten setzen, Ethernet auf eine feste IP umstellen):</p>
 <pre><code class="language-bash">curl -X PUT http://192.168.1.50/api/network/config \
   -H &quot;Content-Type: application/json&quot; \
   -d &#x27;{
     &quot;wifi_ssid&quot;: &quot;MeinNetzwerk&quot;,
-    &quot;wifi_password&quot;: &quot;sicheres-passwort123&quot;
+    &quot;wifi_password&quot;: &quot;sicheres-passwort123&quot;,
+    &quot;eth_static&quot;: {
+      &quot;enabled&quot;: true,
+      &quot;ip&quot;: &quot;192.168.1.100&quot;,
+      &quot;netmask&quot;: &quot;255.255.255.0&quot;,
+      &quot;gateway&quot;: &quot;192.168.1.1&quot;,
+      &quot;dns&quot;: &quot;192.168.1.1&quot;
+    }
   }&#x27;</code></pre>
 <p><strong>Beispiel-Response (200):</strong> <code>true</code></p>
 <p><strong>Fehlerfälle (zusätzlich zum allgemeinen Schema):</strong></p>
@@ -875,7 +936,7 @@ curl -X PUT http://192.168.1.50/api/sensors/config \
 </tr></thead><tbody>
 <tr>
 <td><code>400 Bad Request</code></td>
-<td>Body kein JSON-Objekt, oder <code>wifi_ssid</code> fehlt/ist kein String</td>
+<td>Body kein JSON-Objekt; <code>wifi_ssid</code> fehlt/ist kein String; <code>eth_static</code>/<code>wifi_static</code> ist kein Objekt; oder bei <code>enabled:true</code> fehlt/ist ungültig eine der Adressen <code>ip</code>/<code>netmask</code>/<code>gateway</code>/(falls angegeben) <code>dns</code> (muss jeweils eine gültige IPv4-Adresse in Punkt-Notation sein)</td>
 </tr>
 </tbody></table></div>
 <hr>

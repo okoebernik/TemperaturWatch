@@ -246,8 +246,21 @@ the main loop), the bootloader automatically rolls back to the previous version 
 curl -X POST --data-binary @build/www.bin http://<ip>/api/system/ota-web
 ```
 
+## Network: static IP (optional)
+
+Ethernet and WiFi obtain their address via DHCP by default. Either interface can independently be given a
+fixed IP address (IP, subnet mask, gateway, optional DNS server) – under "Network" in the web UI or via
+`PUT /api/network/config` (fields `eth_static`/`wifi_static`, see
+[docs/REST_API.en.md](docs/REST_API.en.md#put-apinetworkconfig)). When static IP is enabled, the
+respective interface's DHCP client is stopped and the fixed address applied as soon as the link comes up;
+without it enabled, the interface behaves as before (DHCP). As with WiFi credentials/hostname, a change
+takes effect only after a restart.
+
+> ⚠️ An incorrectly entered address/gateway may make the device unreachable over the network – recovery
+> is then only possible via a serial connection (`idf.py -p <PORT> monitor` + factory reset via the web UI,
+> if still reachable, or reflashing).
+
 ## Known limitations / possible extensions
 
 - WiFi and SNMP configuration changes take effect only after a restart (no live reconnect).
 - Digital inputs use an internal pull-up without configurable debouncing.
-- Static IP configuration (instead of DHCP) is not implemented.
