@@ -1,5 +1,7 @@
 # TemperaturWatch
 
+[![Latest release](https://img.shields.io/github/v/release/okoebernik/TemperaturWatch?label=Release)](https://github.com/okoebernik/TemperaturWatch/releases/latest)
+
 Firmware for the [Waveshare ESP32-P4-WIFI6-POE-ETH](https://www.waveshare.com/wiki/ESP32-P4-WIFI6-POE-ETH), which
 reads temperature/humidity from Dallas 1-Wire (DS18B20), DHT11, and AM2301 sensors, manages digital
 inputs/outputs (e.g. relays, alarms), and exposes everything via REST API, MQTT, and SNMP. Configuration
@@ -43,6 +45,10 @@ MDC=GPIO31, MDIO=GPIO52, PHY reset=GPIO51, PHY address=1 (IP101, configurable vi
 `components/net_manager/Kconfig`).
 
 ## Build & flash
+
+> 📦 Pre-built firmware binaries ready to flash (no build required) are available on
+> [GitHub Releases](https://github.com/okoebernik/TemperaturWatch/releases/latest) – along with the full
+> release notes covering the feature set and exact flash command for each version.
 
 Prerequisite: ESP-IDF v5.5.4 (or compatible) installed.
 
