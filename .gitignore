@@ -10,6 +10,7 @@ sdkconfig.old
 # Python
 __pycache__/
 *.pyc
+tools/modbus_simulator/simulator_config.json
 
 # Editor
 .vscode/
