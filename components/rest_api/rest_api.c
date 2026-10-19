@@ -745,6 +745,11 @@ esp_err_t rest_api_start(void)
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.uri_match_fn = httpd_uri_match_wildcard;
     config.max_uri_handlers = 30;
+    // Browser oeffnen beim Laden der Seite viele parallele Keep-Alive-
+    // Verbindungen. Ohne LRU-Purge verweigert der Server bei erschoepften
+    // Sockets neue Verbindungen (im Browser: ERR_EMPTY_RESPONSE); mit LRU-Purge
+    // wird stattdessen die am laengsten ungenutzte Verbindung geschlossen.
+    config.lru_purge_enable = true;
 
     httpd_handle_t server = NULL;
     err = httpd_start(&server, &config);
