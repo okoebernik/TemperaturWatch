@@ -19,3 +19,6 @@ tools/modbus_simulator/simulator_config.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Firmenlogo - bewusst nicht im oeffentlichen Repo (index.html blendet es aus, wenn es fehlt)
+web/logo.png

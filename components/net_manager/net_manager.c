@@ -365,6 +365,22 @@ bool net_manager_eth_connected(void)
     return s_eth_connected;
 }
 
+bool net_manager_get_ip_str(bool ethernet, char *buf, size_t len)
+{
+    if (buf == NULL || len == 0) {
+        return false;
+    }
+    buf[0] = '\0';
+    esp_netif_t *netif = ethernet ? s_eth_netif : s_wifi_netif;
+    bool connected = ethernet ? s_eth_connected : s_wifi_connected;
+    esp_netif_ip_info_t ip_info;
+    if (netif == NULL || !connected || esp_netif_get_ip_info(netif, &ip_info) != ESP_OK) {
+        return false;
+    }
+    snprintf(buf, len, IPSTR, IP2STR(&ip_info.ip));
+    return true;
+}
+
 esp_err_t net_manager_get_config_json(cJSON **out_config)
 {
     if (out_config == NULL) {

@@ -26,24 +26,24 @@ let dashInterval = null;
 // Deckt gaengige Regionen ab; alles darueber hinaus geht ueber die
 // "Benutzerdefiniert"-Option (freier POSIX-TZ-String).
 const TIMEZONES = [
-  { value: "UTC0", label: "UTC" },
-  { value: "GMT0BST,M3.5.0/1,M10.5.0", label: "UTC+0/+1 – London" },
-  { value: "CET-1CEST,M3.5.0,M10.5.0/3", label: "UTC+1/+2 – Berlin, Paris, Madrid, Rom, Amsterdam, Wien" },
-  { value: "EET-2EEST,M3.5.0/3,M10.5.0/4", label: "UTC+2/+3 – Helsinki, Athen, Kiew, Bukarest" },
-  { value: "MSK-3", label: "UTC+3 – Moskau" },
-  { value: "<-03>3", label: "UTC-3 – São Paulo" },
-  { value: "EST5EDT,M3.2.0,M11.1.0", label: "UTC-5/-4 – New York, Toronto" },
-  { value: "CST6CDT,M3.2.0,M11.1.0", label: "UTC-6/-5 – Chicago" },
-  { value: "MST7MDT,M3.2.0,M11.1.0", label: "UTC-7/-6 – Denver" },
-  { value: "PST8PDT,M3.2.0,M11.1.0", label: "UTC-8/-7 – Los Angeles, Vancouver" },
-  { value: "IST-5:30", label: "UTC+5:30 – Neu-Delhi, Mumbai" },
-  { value: "<+04>-4", label: "UTC+4 – Dubai" },
-  { value: "<+07>-7", label: "UTC+7 – Bangkok, Jakarta" },
-  { value: "CST-8", label: "UTC+8 – Peking, Shanghai, Singapur" },
-  { value: "JST-9", label: "UTC+9 – Tokio, Seoul" },
-  { value: "AEST-10AEDT,M10.1.0,M4.1.0/3", label: "UTC+10/+11 – Sydney, Melbourne" },
-  { value: "NZST-12NZDT,M9.5.0,M4.1.0/3", label: "UTC+12/+13 – Auckland" },
-  { value: "SAST-2", label: "UTC+2 – Johannesburg" },
+  { value: "UTC0", label: "UTC", labelEn: "UTC" },
+  { value: "GMT0BST,M3.5.0/1,M10.5.0", label: "UTC+0/+1 – London", labelEn: "UTC+0/+1 – London" },
+  { value: "CET-1CEST,M3.5.0,M10.5.0/3", label: "UTC+1/+2 – Berlin, Paris, Madrid, Rom, Amsterdam, Wien", labelEn: "UTC+1/+2 – Berlin, Paris, Madrid, Rome, Amsterdam, Vienna" },
+  { value: "EET-2EEST,M3.5.0/3,M10.5.0/4", label: "UTC+2/+3 – Helsinki, Athen, Kiew, Bukarest", labelEn: "UTC+2/+3 – Helsinki, Athens, Kyiv, Bucharest" },
+  { value: "MSK-3", label: "UTC+3 – Moskau", labelEn: "UTC+3 – Moscow" },
+  { value: "<-03>3", label: "UTC-3 – São Paulo", labelEn: "UTC-3 – São Paulo" },
+  { value: "EST5EDT,M3.2.0,M11.1.0", label: "UTC-5/-4 – New York, Toronto", labelEn: "UTC-5/-4 – New York, Toronto" },
+  { value: "CST6CDT,M3.2.0,M11.1.0", label: "UTC-6/-5 – Chicago", labelEn: "UTC-6/-5 – Chicago" },
+  { value: "MST7MDT,M3.2.0,M11.1.0", label: "UTC-7/-6 – Denver", labelEn: "UTC-7/-6 – Denver" },
+  { value: "PST8PDT,M3.2.0,M11.1.0", label: "UTC-8/-7 – Los Angeles, Vancouver", labelEn: "UTC-8/-7 – Los Angeles, Vancouver" },
+  { value: "IST-5:30", label: "UTC+5:30 – Neu-Delhi, Mumbai", labelEn: "UTC+5:30 – New Delhi, Mumbai" },
+  { value: "<+04>-4", label: "UTC+4 – Dubai", labelEn: "UTC+4 – Dubai" },
+  { value: "<+07>-7", label: "UTC+7 – Bangkok, Jakarta", labelEn: "UTC+7 – Bangkok, Jakarta" },
+  { value: "CST-8", label: "UTC+8 – Peking, Shanghai, Singapur", labelEn: "UTC+8 – Beijing, Shanghai, Singapore" },
+  { value: "JST-9", label: "UTC+9 – Tokio, Seoul", labelEn: "UTC+9 – Tokyo, Seoul" },
+  { value: "AEST-10AEDT,M10.1.0,M4.1.0/3", label: "UTC+10/+11 – Sydney, Melbourne", labelEn: "UTC+10/+11 – Sydney, Melbourne" },
+  { value: "NZST-12NZDT,M9.5.0,M4.1.0/3", label: "UTC+12/+13 – Auckland", labelEn: "UTC+12/+13 – Auckland" },
+  { value: "SAST-2", label: "UTC+2 – Johannesburg", labelEn: "UTC+2 – Johannesburg" },
 ];
 
 // ============================================================
@@ -187,35 +187,37 @@ function renderPinGrid(container, opts) {
 }
 
 // ============================================================
-// Theme
+// Tag-/Nachtmodus
 // ============================================================
+
+const THEME_STORAGE_KEY = "temperaturwatch-theme";
+
+function effectiveTheme() {
+  return document.documentElement.getAttribute("data-theme")
+    || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+}
 
 function applyTheme(theme) {
-  if (theme) {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("tw-theme", theme);
-  } else {
-    document.documentElement.removeAttribute("data-theme");
-    localStorage.removeItem("tw-theme");
-  }
+  document.documentElement.setAttribute("data-theme", theme);
+  try { localStorage.setItem(THEME_STORAGE_KEY, theme); } catch (e) { /* ignore */ }
 }
 
 // ============================================================
-// Sprache
+// Sprachumschaltung
 // ============================================================
 
-function updateLangToggleLabel() {
-  document.getElementById("lang-toggle-label").textContent = currentLang.toUpperCase();
-}
-
-function setLang(lang) {
-  if (!SUPPORTED_LANGS.includes(lang)) return;
-  currentLang = lang;
-  localStorage.setItem("tw-lang", lang);
-  updateLangToggleLabel();
+// Aktualisiert alle statischen (data-i18n) UND dynamisch generierten Texte
+// der aktuell sichtbaren Seite. Reines applyStaticTranslations() wuerde per
+// innerHTML gesetzte Inhalte (Karten, Tabellen, Statusanzeigen) nicht
+// erfassen - die werden daher ueber onRouteEnter()/pollFooterStatus() neu
+// aufgebaut.
+function setLanguage(lang) {
+  i18nSetLang(lang);
+  document.getElementById("lang-select").value = lang;
   applyStaticTranslations();
   document.getElementById("page-title").textContent = t("nav." + state.route);
   onRouteEnter(state.route);
+  pollFooterStatus();
 }
 
 // ============================================================
@@ -250,10 +252,10 @@ async function onRouteEnter(route) {
     }
     if (route === "sensors") renderSensorsTable();
     if (route === "io") renderIoTable();
-    if (route === "network") await Promise.all([loadNetworkForm(), loadTimeForm()]);
+    if (route === "network") await loadNetworkForm();
     if (route === "mqtt") await loadMqttForm();
     if (route === "snmp") await loadSnmpForm();
-    if (route === "system") await Promise.all([loadSystemInfo(), loadAuthForm()]);
+    if (route === "system") await Promise.all([loadSystemInfo(), loadAuthForm(), loadTimeForm()]);
     if (route === "help") await loadHelpTopic(state.helpTopic);
   } catch (err) {
     toast(t("toast.load.error", { msg: err.message }), "error");
@@ -589,18 +591,39 @@ function staticIpFieldsValid(cfg) {
   return true;
 }
 
+function renderNetworkStatus(info, cfg) {
+  const ifaceRow = (label, connected, ip, extra) => `
+    <div class="row" style="margin-top:0.4rem"><span class="k">${label}</span><span>${connected
+      ? `<span class="badge ok">${t("status.connected")}</span> <span class="mono">${escapeHtml(ip || "")}</span>${extra || ""}`
+      : `<span class="badge">${t("status.disconnected")}</span>`}</span></div>`;
+  document.getElementById("net-status").innerHTML =
+    ifaceRow(t("statusbar.iface.eth"), info.eth_connected, info.eth_ip)
+    + ifaceRow(t("statusbar.iface.wifi"), info.wifi_connected, info.wifi_ip,
+        cfg.wifi_ssid ? ` <span class="muted">(${escapeHtml(cfg.wifi_ssid)})</span>` : "")
+    + `<div class="row" style="margin-top:0.4rem"><span class="k">${t("field.hostname")}</span><span class="mono">${escapeHtml(cfg.hostname || "–")}.local</span></div>`;
+  const badge = document.getElementById("net-status-badge");
+  badge.textContent = info.has_ip ? t("status.connected") : t("footer.noip");
+  badge.className = "badge " + (info.has_ip ? "ok" : "warn");
+}
+
+function setFooterHostname(hostname) {
+  document.getElementById("footer-hostname").textContent = hostname ? `${hostname}.local` : "–";
+}
+
 async function loadNetworkForm() {
-  const cfg = await api.get("/api/network/config");
+  const [cfg, info] = await Promise.all([api.get("/api/network/config"), api.get("/api/system/info")]);
   document.getElementById("net-ssid").value = cfg.wifi_ssid || "";
   document.getElementById("net-password").value = "";
   document.getElementById("net-hostname").value = cfg.hostname || "";
   loadStaticIpFields("eth", cfg.eth_static);
   loadStaticIpFields("wifi", cfg.wifi_static);
+  renderNetworkStatus(info, cfg);
+  setFooterHostname(cfg.hostname);
 }
 
 function populateTimezoneSelect() {
   const select = document.getElementById("time-timezone");
-  select.innerHTML = TIMEZONES.map((z) => `<option value="${z.value}">${escapeHtml(z.label)}</option>`).join("")
+  select.innerHTML = TIMEZONES.map((z) => `<option value="${z.value}">${escapeHtml(i18nCurrentLang === "de" ? z.label : z.labelEn)}</option>`).join("")
     + `<option value="__custom__">${t("option.timezone.custom")}</option>`;
 }
 
@@ -671,16 +694,11 @@ async function loadSnmpForm() {
 
 async function loadSystemInfo() {
   const info = await api.get("/api/system/info");
-  const el = document.getElementById("system-info");
-  el.innerHTML = `
-    <div class="row row--between"><span class="muted">${t("info.chip")}</span><span>${info.chip} (${t("info.chip.cores", { cores: info.cores })})</span></div>
-    <div class="row row--between"><span class="muted">${t("info.idf")}</span><span>${info.idf_version}</span></div>
-    <div class="row row--between"><span class="muted">${t("info.uptime")}</span><span>${formatUptime(info.uptime_s)}</span></div>
-    <div class="row row--between"><span class="muted">${t("info.free.heap")}</span><span>${(info.free_heap / 1024).toFixed(0)} KB</span></div>
-    <div class="row row--between"><span class="muted">${t("info.network")}</span><span class="badge ${info.has_ip ? "ok" : "warn"}"><span class="dot"></span>${info.has_ip ? t("status.connected") : t("footer.noip")}</span></div>
-    <div class="row row--between"><span class="muted">${t("info.mqtt")}</span><span class="badge ${info.mqtt_connected ? "ok" : ""}"><span class="dot"></span>${info.mqtt_connected ? t("status.connected") : t("status.disconnected")}</span></div>
-    <div class="row row--between"><span class="muted">${t("info.header.pins")}</span><span>${t("info.header.pins.value", { count: info.header_gpio_count })}</span></div>
-  `;
+  document.getElementById("system-info").innerHTML = `
+    <div class="card"><div class="card__subtitle">${t("system.card_firmware")}</div><div class="card__value">${escapeHtml(info.firmware_version || "–")}</div><div class="card__foot">${t("system.build_prefix")}${escapeHtml(info.build_date || "–")}</div></div>
+    <div class="card"><div class="card__subtitle">${t("info.chip")}</div><div class="card__value">${escapeHtml(info.chip)}</div><div class="card__foot">${t("system.chip_foot", { cores: info.cores, ver: escapeHtml(info.idf_version) })}</div></div>
+    <div class="card"><div class="card__subtitle">${t("info.uptime")}</div><div class="card__value">${formatUptime(info.uptime_s)}</div></div>
+    <div class="card"><div class="card__subtitle">${t("info.free.heap")}</div><div class="card__value">${Math.round(info.free_heap / 1024)} <small>KB</small></div><div class="card__foot">${t("system.heap_min_foot", { kb: Math.round(info.min_free_heap / 1024) })}</div></div>`;
 }
 
 async function loadAuthForm() {
@@ -710,7 +728,7 @@ async function loadHelpTopic(topic) {
   const el = document.getElementById("help-content");
   el.innerHTML = `<p class="skeleton">${t("common.loading")}</p>`;
   try {
-    const res = await fetch(`/help/${topic}.${currentLang}.html`);
+    const res = await fetch(`/help/${topic}.${i18nCurrentLang}.html`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     el.innerHTML = await res.text();
   } catch (err) {
@@ -723,44 +741,40 @@ async function loadHelpTopic(topic) {
 // OTA-Upload (Firmware und Web-UI teilen sich dieselbe Upload-Logik)
 // ============================================================
 
-function wireOtaForm(opts) {
-  document.getElementById(opts.formId).addEventListener("submit", async (e) => {
-    e.preventDefault();
+function setupOtaUpload(opts) {
+  document.getElementById(opts.btnId).addEventListener("click", async () => {
     const file = document.getElementById(opts.fileId).files[0];
+    const progress = document.getElementById(opts.progressId);
+    const btn = document.getElementById(opts.btnId);
     if (!file) {
       toast(t("toast.select.bin.file"), "error");
       return;
     }
     if (!(await confirmDialog(t(opts.confirmTitleKey), t("confirm.ota.msg", { name: file.name, size: (file.size / 1024).toFixed(0) })))) return;
 
-    const wrap = document.getElementById(opts.wrapId);
-    const fill = document.getElementById(opts.fillId);
-    const btn = document.getElementById(opts.btnId);
-    btn.disabled = true;
-    wrap.style.display = "";
-    fill.style.width = "0%";
-
-    try {
-      await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open("POST", opts.url);
-        xhr.upload.addEventListener("progress", (ev) => {
-          if (ev.lengthComputable) {
-            fill.style.width = Math.round((ev.loaded / ev.total) * 100) + "%";
-          }
-        });
-        xhr.onload = () => {
-          (xhr.status >= 200 && xhr.status < 300) ? resolve() : reject(new Error(`HTTP ${xhr.status}: ${xhr.responseText}`));
-        };
-        xhr.onerror = () => reject(new Error(t("error.network")));
-        xhr.send(file);
-      });
-      toast(t(opts.successMsgKey), "success");
-    } catch (err) {
-      toast(t("toast.ota.update.failed", { msg: err.message }), "error");
-    } finally {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", opts.url);
+    xhr.upload.addEventListener("progress", (ev) => {
+      if (ev.lengthComputable) progress.textContent = `${Math.round((ev.loaded / ev.total) * 100)} %`;
+    });
+    xhr.addEventListener("load", () => {
       btn.disabled = false;
-    }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        progress.textContent = opts.reloadsDevice ? t("system.upload_done_reboot") : t("system.upload_done");
+        toast(t("system.update_success"), "success");
+      } else {
+        progress.textContent = t("system.upload_failed", { msg: xhr.responseText });
+        toast(t("system.update_failed"), "error");
+      }
+    });
+    xhr.addEventListener("error", () => {
+      btn.disabled = false;
+      progress.textContent = t("error.network");
+      toast(t("error.network"), "error");
+    });
+    btn.disabled = true;
+    progress.textContent = t("system.uploading");
+    xhr.send(file);
   });
 }
 
@@ -779,14 +793,9 @@ function wireEvents() {
     document.getElementById("sidebar").classList.toggle("open");
   });
 
+  document.getElementById("lang-select").addEventListener("change", (e) => setLanguage(e.target.value));
   document.getElementById("theme-toggle").addEventListener("click", () => {
-    const current = document.documentElement.getAttribute("data-theme")
-      || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
-    applyTheme(current === "dark" ? "light" : "dark");
-  });
-
-  document.getElementById("lang-toggle").addEventListener("click", () => {
-    setLang(currentLang === "de" ? "en" : "de");
+    applyTheme(effectiveTheme() === "dark" ? "light" : "dark");
   });
 
   // Hilfe
@@ -916,7 +925,10 @@ function wireEvents() {
     };
     try {
       await api.put("/api/network/config", body);
-      toast(t("toast.network.saved"), "success");
+      toast(t("toast.network.saved_rebooting"), "success");
+      try {
+        await api.post("/api/system/reboot");
+      } catch (e) { /* Verbindung bricht durch den Neustart oft vor der Antwort ab */ }
     } catch (err) {
       toast(t("toast.error", { msg: err.message }), "error");
     }
@@ -1018,15 +1030,13 @@ function wireEvents() {
     toast(t("toast.factory.running"), "success");
   });
 
-  wireOtaForm({
-    formId: "form-ota", fileId: "ota-file", wrapId: "ota-progress-wrap", fillId: "ota-progress-fill",
-    btnId: "btn-ota-upload", url: "/api/system/ota", confirmTitleKey: "confirm.ota.firmware.title",
-    successMsgKey: "toast.ota.firmware.success",
+  setupOtaUpload({
+    fileId: "ota-app-file", btnId: "ota-app-btn", progressId: "ota-app-progress", url: "/api/system/ota",
+    confirmTitleKey: "confirm.ota.firmware.title", reloadsDevice: true,
   });
-  wireOtaForm({
-    formId: "form-ota-web", fileId: "ota-web-file", wrapId: "ota-web-progress-wrap", fillId: "ota-web-progress-fill",
-    btnId: "btn-ota-web-upload", url: "/api/system/ota-web", confirmTitleKey: "confirm.ota.web.title",
-    successMsgKey: "toast.ota.web.success",
+  setupOtaUpload({
+    fileId: "ota-web-file", btnId: "ota-web-btn", progressId: "ota-web-progress", url: "/api/system/ota-web",
+    confirmTitleKey: "confirm.ota.web.title", reloadsDevice: false,
   });
 
   // Globale Delegation: Bearbeiten/Löschen-Buttons in Tabellen, Dialog-Schliessen
@@ -1160,12 +1170,6 @@ async function pollFooterStatus() {
   try {
     const info = await api.get("/api/system/info");
     state.uptimeMs = info.uptime_s * 1000;
-    document.getElementById("brand-dot").classList.toggle("ok", info.has_ip);
-    document.getElementById("footer-ip").textContent = info.has_ip ? t("footer.connected") : t("footer.noip");
-    document.getElementById("topbar-meta").textContent = t("topbar.meta.info", {
-      uptime: formatUptime(info.uptime_s),
-      heap: (info.free_heap / 1024).toFixed(0),
-    });
     renderStatusBar(info);
   } catch (e) { /* still show old status */ }
 }
@@ -1175,11 +1179,13 @@ async function pollFooterStatus() {
 // ============================================================
 
 async function init() {
-  const savedTheme = localStorage.getItem("tw-theme");
-  if (savedTheme) applyTheme(savedTheme);
-
+  try {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (savedTheme === "light" || savedTheme === "dark") document.documentElement.setAttribute("data-theme", savedTheme);
+  } catch (e) { /* localStorage kann blockiert sein */ }
+  document.documentElement.lang = i18nCurrentLang;
+  document.getElementById("lang-select").value = i18nCurrentLang;
   applyStaticTranslations();
-  updateLangToggleLabel();
   populateTimezoneSelect();
 
   wireEvents();
@@ -1189,6 +1195,10 @@ async function init() {
   } catch (err) {
     toast(t("toast.boardpins.error", { msg: err.message }), "error");
   }
+
+  // Hostname fuer den Sidebar-Footer, unabhaengig davon, welche Seite zuerst
+  // geoeffnet wird.
+  api.get("/api/network/config").then((cfg) => setFooterHostname(cfg.hostname)).catch(() => { /* bleibt "-" */ });
 
   setRoute(location.hash.slice(1) || "dashboard");
   pollFooterStatus();

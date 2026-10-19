@@ -7,6 +7,7 @@
 #include "esp_chip_info.h"
 #include "esp_http_server.h"
 #include "esp_log.h"
+#include "esp_app_desc.h"
 #include "esp_ota_ops.h"
 #include "esp_partition.h"
 #include "esp_spiffs.h"
@@ -88,10 +89,14 @@ static esp_err_t static_file_get_handler(httpd_req_t *req)
 {
     char filepath[FILE_PATH_MAX];
     strlcpy(filepath, WWW_BASE_PATH, sizeof(filepath));
-    if (req->uri[strlen(req->uri) - 1] == '/') {
+    // Query-String/Fragment (z.B. "/?lang=de" fuer die Sprachvorwahl des
+    // Web-UI) gehoeren nicht zum Dateinamen.
+    size_t path_len = strcspn(req->uri, "?#");
+    if (path_len > 0 && req->uri[path_len - 1] == '/') {
         strlcat(filepath, "/index.html", sizeof(filepath));
     } else {
-        strlcat(filepath, req->uri, sizeof(filepath));
+        size_t cur = strlen(filepath);
+        snprintf(filepath + cur, sizeof(filepath) - cur, "%.*s", (int)path_len, req->uri);
     }
 
     int fd = open(filepath, O_RDONLY, 0);
@@ -458,7 +463,13 @@ static esp_err_t api_system_info_get_handler(httpd_req_t *req)
     esp_chip_info_t chip_info;
     esp_chip_info(&chip_info);
 
+    const esp_app_desc_t *app_desc = esp_app_get_description();
+    char ip_buf[16];
+
     cJSON *root = cJSON_CreateObject();
+    cJSON_AddStringToObject(root, "firmware_version", app_desc->version);
+    cJSON_AddStringToObject(root, "build_date", app_desc->date);
+    cJSON_AddStringToObject(root, "build_time", app_desc->time);
     cJSON_AddStringToObject(root, "idf_version", IDF_VER);
     cJSON_AddStringToObject(root, "chip", CONFIG_IDF_TARGET);
     cJSON_AddNumberToObject(root, "cores", chip_info.cores);
@@ -468,6 +479,8 @@ static esp_err_t api_system_info_get_handler(httpd_req_t *req)
     cJSON_AddBoolToObject(root, "has_ip", net_manager_has_ip());
     cJSON_AddBoolToObject(root, "wifi_connected", net_manager_wifi_connected());
     cJSON_AddBoolToObject(root, "eth_connected", net_manager_eth_connected());
+    cJSON_AddStringToObject(root, "eth_ip", net_manager_get_ip_str(true, ip_buf, sizeof(ip_buf)) ? ip_buf : "");
+    cJSON_AddStringToObject(root, "wifi_ip", net_manager_get_ip_str(false, ip_buf, sizeof(ip_buf)) ? ip_buf : "");
     cJSON_AddBoolToObject(root, "mqtt_enabled", mqtt_manager_is_enabled());
     cJSON_AddBoolToObject(root, "mqtt_connected", mqtt_manager_is_connected());
     cJSON_AddBoolToObject(root, "snmp_enabled", snmp_agent_is_enabled());

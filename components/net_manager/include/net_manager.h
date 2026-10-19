@@ -31,6 +31,12 @@ bool net_manager_wifi_connected(void);
 // (Kabel gezogen/kein Link -> false).
 bool net_manager_eth_connected(void);
 
+// Schreibt die aktuelle IPv4-Adresse des Ethernet- (ethernet=true) bzw.
+// WLAN-Interfaces (ethernet=false) als Dotted-Quad nach `buf` (mind. 16 Bytes)
+// und liefert true. Liefert false (buf = ""), wenn das Interface gerade keine
+// IP-Adresse hat.
+bool net_manager_get_ip_str(bool ethernet, char *buf, size_t len);
+
 // Aktuell gespeicherte Netzwerk-Konfiguration als JSON-Objekt
 // {wifi_ssid, wifi_password, hostname, eth_static, wifi_static} (Aufrufer
 // muss cJSON_Delete() aufrufen). wifi_password wird aus Sicherheitsgruenden

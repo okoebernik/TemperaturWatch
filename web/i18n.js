@@ -4,7 +4,7 @@
 // Übersetzungen / Translations
 // ============================================================
 
-const I18N = {
+const I18N_STRINGS = {
   de: {
     "nav.dashboard": "Dashboard",
     "nav.sensors": "Sensoren",
@@ -13,10 +13,7 @@ const I18N = {
     "nav.mqtt": "MQTT",
     "nav.snmp": "SNMP",
     "nav.system": "System",
-    "theme.toggle.title": "Theme wechseln",
-    "lang.toggle.title": "Sprache wechseln",
 
-    "footer.connected": "verbunden",
     "footer.noip": "keine IP",
 
     "dashboard.lead": "Live-Messwerte und Ausgangszustände.",
@@ -61,14 +58,10 @@ const I18N = {
     "io.empty.title": "Keine IOs konfiguriert",
     "io.empty.hint": "Füge einen digitalen Ein- oder Ausgang hinzu.",
 
-    "network.lead": "WLAN-Zugangsdaten (über den ESP32-C6) und Geräte-Hostname. Ethernet ist immer aktiv und benötigt keine Konfiguration.",
+    "network.lead": "Verbindungsstatus, WLAN-Zugangsdaten (über den ESP32-C6), Hostname und optionale feste IP-Adressen. Ethernet ist immer aktiv.",
     "network.wifi.title": "WLAN",
-    "field.ssid": "SSID",
-    "field.password": "Passwort",
-    "placeholder.password.keep": "unverändert lassen = altes Passwort behalten",
     "field.hostname": "Hostname (mDNS)",
-    "hint.hostname": "Gerät erreichbar unter <hostname>.local",
-    "hint.restart.required": "Änderungen wirken erst nach einem Neustart.",
+    "hint.hostname": "Gerät erreichbar unter http://&lt;hostname&gt;.local/",
     "btn.save": "Speichern",
 
     "network.eth.static.title": "Ethernet – Statische IP",
@@ -85,7 +78,6 @@ const I18N = {
     "field.enabled": "Aktiviert",
     "field.broker.uri": "Broker-URI",
     "field.username": "Benutzername",
-    "placeholder.password.unchanged": "unverändert lassen",
     "field.base.topic": "Basis-Topic",
     "field.publish.interval": "Publish-Intervall (s)",
     "field.client.id": "Client-ID (optional)",
@@ -105,35 +97,19 @@ const I18N = {
     "status.restart.needed": "Neustart nötig",
 
     "system.lead": "Geräteinformationen, Zugriffsschutz und Wartung.",
-    "system.info.title": "Geräteinformationen",
     "system.login.title": "Web-UI-Login",
     "field.auth.enabled": "HTTP-Basic-Auth aktiviert",
     "hint.password.set": "Ein Passwort ist gesetzt. Leer lassen, um es beizubehalten.",
     "hint.password.notset": "Noch kein Passwort gesetzt - erforderlich, um den Login zu aktivieren.",
-    "system.maintenance.title": "Wartung",
-    "system.reboot.title": "Neustart",
-    "system.reboot.desc": "Startet das Gerät neu, Konfiguration bleibt erhalten.",
     "btn.reboot": "Neustart",
-    "system.factory.title": "Werkseinstellungen",
-    "system.factory.desc": "Löscht Netzwerk-, MQTT-, SNMP-, Sensor-, IO- und Login-Konfiguration.",
-    "btn.factory.reset": "Zurücksetzen",
-    "system.ota.title": "Firmware-Update (OTA)",
-    "field.ota.file": "Firmware-Datei (.bin)",
-    "hint.ota": "Wird in den inaktiven OTA-Slot geschrieben. Bei Erfolg startet das Gerät automatisch mit der neuen Firmware; startet sie nicht sauber, wird beim nächsten Neustart automatisch auf die vorherige Version zurückgerollt.",
-    "btn.upload.install": "Hochladen & installieren",
-    "system.ota.web.title": "Web-UI-Update",
-    "field.ota.web.file": "Dateisystem-Image (www.bin)",
-    "hint.ota.web": "Aktualisiert nur das Web-UI (aus <code>build/www.bin</code>), unabhängig von der Firmware. Kein Neustart nötig; während des Uploads ist das Web-UI kurz nicht erreichbar, die REST-API bleibt es.",
+    "btn.factory.reset": "Werkseinstellungen",
+    "system.ota.title": "Firmware-Update",
+    "field.ota.file": "App-Firmware (temperaturwatch.bin)",
+    "field.ota.web.file": "Web-UI-Image (www.bin)",
 
     "info.chip": "Chip",
-    "info.chip.cores": "{cores} Kerne",
-    "info.idf": "ESP-IDF",
     "info.uptime": "Laufzeit",
     "info.free.heap": "Freier Heap",
-    "info.network": "Netzwerk",
-    "info.mqtt": "MQTT",
-    "info.header.pins": "Stiftleiste",
-    "info.header.pins.value": "{count} freie GPIOs",
 
     "sensor.dialog.add.title": "Sensor hinzufügen",
     "sensor.dialog.edit.title": "Sensor bearbeiten",
@@ -201,16 +177,12 @@ const I18N = {
     "toast.io.saved": "IO gespeichert",
     "toast.io.deleted": "IO gelöscht",
     "toast.error": "Fehler: {msg}",
-    "toast.network.saved": "Netzwerk-Einstellungen gespeichert. Neustart erforderlich.",
     "toast.mqtt.saved": "MQTT-Einstellungen gespeichert",
     "toast.snmp.saved": "SNMP-Einstellungen gespeichert",
     "toast.auth.saved": "Login-Einstellungen gespeichert",
     "toast.reboot.running": "Neustart wird ausgeführt …",
     "toast.factory.running": "Werksreset wird ausgeführt …",
     "toast.boardpins.error": "Board-Pins konnten nicht geladen werden: {msg}",
-    "toast.ota.update.failed": "Update fehlgeschlagen: {msg}",
-    "toast.ota.firmware.success": "Firmware installiert, Gerät startet neu …",
-    "toast.ota.web.success": "Web-UI installiert. Seite neu laden, um die neue Version zu sehen.",
     "toast.select.bin.file": "Bitte eine .bin-Datei auswählen",
     "error.network": "Netzwerkfehler",
 
@@ -222,7 +194,6 @@ const I18N = {
 
     "uptime.hm": "{h}h {m}min",
     "uptime.m": "{m}min",
-    "topbar.meta.info": "Laufzeit {uptime} · {heap} KB frei",
 
     "field.short.humidity": "Feuchte",
     "field.short.temp": "Temp.",
@@ -251,6 +222,32 @@ const I18N = {
     "help.topic.mqtt": "MQTT",
     "help.topic.prtg": "PRTG",
     "toast.help.load.error": "Hilfeseite konnte nicht geladen werden: {msg}",
+
+    "app.name": "TemperaturWatch",
+    "theme.toggle.title": "Tag-/Nachtmodus umschalten",
+    "aria.menu": "Menü",
+    "aria.lang": "Sprache",
+    "footer.tagline": "ESP32-P4 Temperatur-Gateway",
+    "common.password_unchanged": "Passwort (leer = unverändert)",
+    "network.status.title": "Status",
+    "network.static.title": "Statische IP-Adresse",
+    "network.save_reboot_btn": "Speichern & neu starten",
+    "toast.network.saved_rebooting": "Netzwerk-Einstellungen gespeichert – Neustart …",
+    "system.card_firmware": "Firmware",
+    "system.build_prefix": "Build: ",
+    "system.chip_foot": "{cores} Kerne · ESP-IDF {ver}",
+    "system.heap_min_foot": "Minimum: {kb} KB",
+    "system.ota.desc": "App-Firmware und Web-UI werden unabhängig voneinander aktualisiert. Die App-Firmware wird in den inaktiven OTA-Slot geschrieben und startet nach erfolgreichem Schreiben automatisch neu; startet die neue Firmware nicht sauber, rollt der Bootloader automatisch auf die vorherige zurück.",
+    "system.upload_reboot_btn": "Hochladen & neu starten",
+    "system.upload_btn": "Hochladen",
+    "system.uploading": "Lade hoch …",
+    "system.upload_done_reboot": "Fertig – Gerät startet neu …",
+    "system.upload_done": "Fertig – Seite neu laden, um die neue Version zu sehen.",
+    "system.upload_failed": "Fehlgeschlagen: {msg}",
+    "system.update_success": "Update installiert",
+    "system.update_failed": "Update fehlgeschlagen",
+    "system.time_desc": "Synchronisiert die Geräteuhr per NTP und speist die Uhr in der Statuszeile. Wirkt sofort, kein Neustart nötig.",
+    "system.access_desc": "Schützt Web-UI und REST-API mit einem Passwort (HTTP-Basic-Auth). Wirkt sofort, kein Neustart nötig.",
   },
 
   en: {
@@ -261,10 +258,7 @@ const I18N = {
     "nav.mqtt": "MQTT",
     "nav.snmp": "SNMP",
     "nav.system": "System",
-    "theme.toggle.title": "Toggle theme",
-    "lang.toggle.title": "Switch language",
 
-    "footer.connected": "connected",
     "footer.noip": "no IP",
 
     "dashboard.lead": "Live sensor readings and output states.",
@@ -309,14 +303,10 @@ const I18N = {
     "io.empty.title": "No IOs configured",
     "io.empty.hint": "Add a digital input or output.",
 
-    "network.lead": "WiFi credentials (via the ESP32-C6) and device hostname. Ethernet is always active and needs no configuration.",
+    "network.lead": "Connection status, WiFi credentials (via the ESP32-C6), hostname, and optional static IP addresses. Ethernet is always active.",
     "network.wifi.title": "WiFi",
-    "field.ssid": "SSID",
-    "field.password": "Password",
-    "placeholder.password.keep": "leave unchanged to keep the current password",
     "field.hostname": "Hostname (mDNS)",
-    "hint.hostname": "Device reachable at &lt;hostname&gt;.local",
-    "hint.restart.required": "Changes take effect only after a restart.",
+    "hint.hostname": "Device reachable at http://&lt;hostname&gt;.local/",
     "btn.save": "Save",
 
     "network.eth.static.title": "Ethernet – Static IP",
@@ -333,7 +323,6 @@ const I18N = {
     "field.enabled": "Enabled",
     "field.broker.uri": "Broker URI",
     "field.username": "Username",
-    "placeholder.password.unchanged": "leave unchanged",
     "field.base.topic": "Base topic",
     "field.publish.interval": "Publish interval (s)",
     "field.client.id": "Client ID (optional)",
@@ -353,35 +342,19 @@ const I18N = {
     "status.restart.needed": "restart needed",
 
     "system.lead": "Device information, access protection, and maintenance.",
-    "system.info.title": "Device information",
     "system.login.title": "Web UI login",
     "field.auth.enabled": "HTTP Basic Auth enabled",
     "hint.password.set": "A password is set. Leave empty to keep it.",
     "hint.password.notset": "No password set yet - required to enable login.",
-    "system.maintenance.title": "Maintenance",
-    "system.reboot.title": "Restart",
-    "system.reboot.desc": "Restarts the device; configuration is kept.",
     "btn.reboot": "Restart",
-    "system.factory.title": "Factory reset",
-    "system.factory.desc": "Deletes network, MQTT, SNMP, sensor, IO, and login configuration.",
-    "btn.factory.reset": "Reset",
-    "system.ota.title": "Firmware update (OTA)",
-    "field.ota.file": "Firmware file (.bin)",
-    "hint.ota": "Written to the inactive OTA slot. On success the device automatically boots the new firmware; if it doesn't start up cleanly, the previous version is automatically rolled back on the next restart.",
-    "btn.upload.install": "Upload & install",
-    "system.ota.web.title": "Web UI update",
-    "field.ota.web.file": "Filesystem image (www.bin)",
-    "hint.ota.web": "Updates only the web UI (from <code>build/www.bin</code>), independent of the firmware. No restart needed; the web UI is briefly unreachable during upload, the REST API stays available.",
+    "btn.factory.reset": "Factory reset",
+    "system.ota.title": "Firmware update",
+    "field.ota.file": "App firmware (temperaturwatch.bin)",
+    "field.ota.web.file": "Web UI image (www.bin)",
 
     "info.chip": "Chip",
-    "info.chip.cores": "{cores} cores",
-    "info.idf": "ESP-IDF",
     "info.uptime": "Uptime",
     "info.free.heap": "Free heap",
-    "info.network": "Network",
-    "info.mqtt": "MQTT",
-    "info.header.pins": "Header pins",
-    "info.header.pins.value": "{count} free GPIOs",
 
     "sensor.dialog.add.title": "Add sensor",
     "sensor.dialog.edit.title": "Edit sensor",
@@ -449,16 +422,12 @@ const I18N = {
     "toast.io.saved": "IO saved",
     "toast.io.deleted": "IO deleted",
     "toast.error": "Error: {msg}",
-    "toast.network.saved": "Network settings saved. Restart required.",
     "toast.mqtt.saved": "MQTT settings saved",
     "toast.snmp.saved": "SNMP settings saved",
     "toast.auth.saved": "Login settings saved",
     "toast.reboot.running": "Restarting …",
     "toast.factory.running": "Factory reset running …",
     "toast.boardpins.error": "Failed to load board pins: {msg}",
-    "toast.ota.update.failed": "Update failed: {msg}",
-    "toast.ota.firmware.success": "Firmware installed, device restarting …",
-    "toast.ota.web.success": "Web UI installed. Reload the page to see the new version.",
     "toast.select.bin.file": "Please select a .bin file",
     "error.network": "Network error",
 
@@ -470,7 +439,6 @@ const I18N = {
 
     "uptime.hm": "{h}h {m}min",
     "uptime.m": "{m}min",
-    "topbar.meta.info": "Uptime {uptime} · {heap} KB free",
 
     "field.short.humidity": "Hum.",
     "field.short.temp": "Temp.",
@@ -499,32 +467,78 @@ const I18N = {
     "help.topic.mqtt": "MQTT",
     "help.topic.prtg": "PRTG",
     "toast.help.load.error": "Failed to load help page: {msg}",
+
+    "app.name": "TemperaturWatch",
+    "theme.toggle.title": "Toggle day/night mode",
+    "aria.menu": "Menu",
+    "aria.lang": "Language",
+    "footer.tagline": "ESP32-P4 Temperature Gateway",
+    "common.password_unchanged": "Password (empty = unchanged)",
+    "network.status.title": "Status",
+    "network.static.title": "Static IP address",
+    "network.save_reboot_btn": "Save & restart",
+    "toast.network.saved_rebooting": "Network settings saved – restarting …",
+    "system.card_firmware": "Firmware",
+    "system.build_prefix": "Build: ",
+    "system.chip_foot": "{cores} cores · ESP-IDF {ver}",
+    "system.heap_min_foot": "Minimum: {kb} KB",
+    "system.ota.desc": "The app firmware and web UI are updated independently. The app firmware is written to the inactive OTA slot and restarts automatically after a successful write; if the new firmware doesn't boot cleanly, the bootloader automatically rolls back to the previous one.",
+    "system.upload_reboot_btn": "Upload & restart",
+    "system.upload_btn": "Upload",
+    "system.uploading": "Uploading …",
+    "system.upload_done_reboot": "Done – device restarting …",
+    "system.upload_done": "Done – reload the page to see the new version.",
+    "system.upload_failed": "Failed: {msg}",
+    "system.update_success": "Update installed",
+    "system.update_failed": "Update failed",
+    "system.time_desc": "Synchronizes the device clock via NTP and drives the clock in the status bar. Takes effect immediately, no restart needed.",
+    "system.access_desc": "Protects the web UI and REST API with a password (HTTP Basic Auth). Takes effect immediately, no restart needed.",
   },
 };
 
-const SUPPORTED_LANGS = ["de", "en"];
+const I18N_STORAGE_KEY = "temperaturwatch-lang";
 
-function detectInitialLang() {
-  const saved = localStorage.getItem("tw-lang");
-  if (saved && SUPPORTED_LANGS.includes(saved)) return saved;
-  const nav = (navigator.language || "de").slice(0, 2).toLowerCase();
-  return SUPPORTED_LANGS.includes(nav) ? nav : "de";
+function i18nGetLang() {
+  // ?lang=de|en in der URL hat Vorrang vor dem gespeicherten Wert - nuetzlich
+  // zum Teilen/Bookmarken einer Seite in einer bestimmten Sprache und fuer
+  // Dokumentations-Screenshots (identisch zu den Schwesterprojekten).
+  try {
+    const urlLang = new URLSearchParams(location.search).get("lang");
+    if (urlLang === "en" || urlLang === "de") return urlLang;
+  } catch (e) { /* ignore */ }
+  try {
+    const stored = localStorage.getItem(I18N_STORAGE_KEY);
+    if (stored === "en" || stored === "de") return stored;
+  } catch (e) { /* localStorage kann in privaten Fenstern/gesperrten Browsern werfen */ }
+  return "en";
 }
 
-let currentLang = detectInitialLang();
+let i18nCurrentLang = i18nGetLang();
 
+function i18nSetLang(lang) {
+  if (lang !== "en" && lang !== "de") return;
+  i18nCurrentLang = lang;
+  try { localStorage.setItem(I18N_STORAGE_KEY, lang); } catch (e) { /* ignore */ }
+  document.documentElement.lang = lang;
+}
+
+// Uebersetzt `key` in die aktuelle Sprache, faellt auf Englisch zurueck, wenn
+// die Sprache/der Schluessel fehlt. `vars` ersetzt {name}-Platzhalter.
 function t(key, vars) {
-  let str = (I18N[currentLang] && I18N[currentLang][key]) || I18N.de[key] || key;
+  const dict = I18N_STRINGS[i18nCurrentLang] || I18N_STRINGS.en;
+  let str = dict[key] !== undefined ? dict[key] : (I18N_STRINGS.en[key] !== undefined ? I18N_STRINGS.en[key] : key);
   if (vars) {
     for (const k in vars) {
-      str = str.replace(new RegExp("\\{" + k + "\\}", "g"), vars[k]);
+      str = str.replace(new RegExp("\{" + k + "\}", "g"), vars[k]);
     }
   }
   return str;
 }
 
+// Setzt alle statisch uebersetzbaren Elemente neu: data-i18n (textContent),
+// data-i18n-html (innerHTML, nur fuer eigene Konstanten mit Entities/<code>),
+// data-i18n-placeholder, data-i18n-title und data-i18n-aria-label.
 function applyStaticTranslations() {
-  document.documentElement.lang = currentLang;
   document.querySelectorAll("[data-i18n]").forEach((el) => {
     el.textContent = t(el.dataset.i18n);
   });
@@ -536,5 +550,8 @@ function applyStaticTranslations() {
   });
   document.querySelectorAll("[data-i18n-title]").forEach((el) => {
     el.title = t(el.dataset.i18nTitle);
+  });
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((el) => {
+    el.setAttribute("aria-label", t(el.dataset.i18nAriaLabel));
   });
 }
