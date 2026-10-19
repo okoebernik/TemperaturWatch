@@ -94,6 +94,10 @@ version). It is shown in the web UI under "System" and returned by `GET /api/sys
 7. Recommended: set up a login (HTTP Basic Auth) under "System" once the device is reachable on the
    network – the web UI/REST API is reachable **without** a login by default.
 
+A detailed guide for administrators (commissioning, network, MQTT, SNMP, updates, security,
+troubleshooting): [Administrator Manual (PDF)](docs/admin_manual_en.pdf) –
+Deutsch: [Administratorhandbuch (PDF)](docs/admin_handbuch_de.pdf).
+
 ## Architecture
 
 Every component under `components/` is self-contained (header + implementation + its own

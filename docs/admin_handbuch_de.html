@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TemperaturWatch – Administratorhandbuch</title>
+<style>
+:root{--fg:#1d2733;--muted:#5f6b7a;--accent:#0b6fb8;--line:#d5dbe3;--bg:#fff;--soft:#f3f6fa;--warn:#b45309;--warnbg:#fff7ed}
+*{box-sizing:border-box}
+@page{size:A4;margin:20mm 18mm 20mm 18mm}
+html{font-size:10.5pt}
+body{font-family:"Segoe UI",Arial,sans-serif;color:var(--fg);background:var(--bg);line-height:1.5;margin:0}
+a{color:var(--accent);text-decoration:none}
+h1{font-size:19pt;color:var(--accent);border-bottom:2px solid var(--accent);padding-bottom:4px;margin:0 0 12px;page-break-before:always;break-after:avoid}
+h2{font-size:13pt;margin:20px 0 6px;break-after:avoid}
+p{margin:6px 0}
+table{border-collapse:collapse;width:100%;margin:10px 0;font-size:9.5pt;break-inside:avoid}
+tr{break-inside:avoid}
+th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top}
+th{background:var(--soft)}
+pre{background:var(--soft);border:1px solid var(--line);border-radius:4px;padding:8px 10px;font:8.5pt Consolas,monospace;white-space:pre-wrap;word-break:break-all;break-inside:avoid}
+.mono{font-family:Consolas,monospace;font-size:.92em}
+.muted{color:var(--muted);font-size:9pt}
+figure{margin:12px 0;text-align:center;break-inside:avoid}
+figure img{max-width:100%;max-height:78mm;width:auto;border:1px solid var(--line);border-radius:4px}
+figcaption{color:var(--muted);font-size:9pt;margin-top:4px}
+.callout{border-left:4px solid var(--accent);background:var(--soft);padding:8px 12px;margin:12px 0;border-radius:3px;break-inside:avoid}
+.callout.warn{border-left-color:var(--warn);background:var(--warnbg)}
+.callout .label{display:block;margin-bottom:2px}
+.callout.warn .label{color:var(--warn)}
+.step{display:flex;gap:10px;margin:8px 0;break-inside:avoid;align-items:flex-start}
+.step .num{flex:0 0 22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-weight:700;font-size:10pt;display:inline-flex;align-items:center;justify-content:center;margin-top:1px}
+.step>div{flex:1}
+ul,ol{margin:6px 0 6px 20px;padding:0}
+.cover{height:240mm;display:flex;flex-direction:column;justify-content:center;border-left:8px solid var(--accent);padding-left:24px}
+.cover h1{font-size:30pt;border:0;padding:0;margin:0 0 10px;page-break-before:avoid}
+.cover .sub{font-size:16pt;color:var(--muted);margin-bottom:40px}
+.cover .meta{font-size:11pt;color:var(--muted);line-height:1.8}
+.toc{page-break-before:always}
+.toc h1{page-break-before:avoid}
+.toc ol{list-style:none;margin:0;padding:0;font-size:11.5pt}
+.toc li{padding:4px 0;border-bottom:1px dotted var(--line)}
+.footer-note{margin-top:30px;font-size:9pt;color:var(--muted)}
+</style></head><body>
+<section class="cover">
+  <h1>TemperaturWatch</h1>
+  <div class="sub">Administratorhandbuch</div>
+  <div class="meta">Waveshare ESP32-P4-WIFI6-POE-ETH<br>Firmware-Version 1.1.0<br>Stand: Oktober 2026<br><br>English version: admin_manual_en.pdf</div>
+</section>
+<section class="toc"><h1>Inhaltsverzeichnis</h1><ol>
+<li><a href="#einleitung">1. Einleitung</a></li>
+<li><a href="#inbetriebnahme">2. Inbetriebnahme</a></li>
+<li><a href="#weboberflaeche">3. Weboberfläche im Überblick</a></li>
+<li><a href="#dashboard">4. Dashboard</a></li>
+<li><a href="#sensoren">5. Sensoren</a></li>
+<li><a href="#ios">6. Digitale IOs</a></li>
+<li><a href="#netzwerk">7. Netzwerk</a></li>
+<li><a href="#mqtt">8. MQTT</a></li>
+<li><a href="#snmp">9. SNMP und Monitoring</a></li>
+<li><a href="#system">10. System</a></li>
+<li><a href="#updates">11. Updates (OTA)</a></li>
+<li><a href="#sicherheit">12. Sicherheit und Betrieb</a></li>
+<li><a href="#problembehebung">13. Problembehebung</a></li>
+<li><a href="#technische-daten">14. Technische Daten</a></li>
+</ol></section>
+<h1 id="einleitung">1. Einleitung</h1>
+<p>
+  TemperaturWatch ist ein Temperatur- und Feuchte-Gateway auf Basis des Waveshare ESP32-P4-WIFI6-POE-ETH. Es liest
+  Dallas-DS18B20-, DHT11- und AM2301-Sensoren aus, schaltet digitale Ausgänge (z.&nbsp;B. Relais für Lüfter oder
+  Alarmgeber) auch automatisch per Schwellwert-Regel und stellt alle Werte per Weboberfläche, REST-API, MQTT und
+  SNMP bereit. Dieses Handbuch richtet sich an <strong>Administratoren</strong>, die das Gerät installieren, in die
+  Netzwerk- und Monitoring-Umgebung einbinden und betreiben.
+</p>
+<div class="callout warn">
+  <strong class="label">Hinweis zur Verwendung</strong>
+  TemperaturWatch ist ein Überwachungs- und Komfortgerät und <strong>kein sicherheitszertifiziertes Schutzsystem</strong>.
+  Wo ein Ausfall zu Personen- oder größeren Sachschäden führen kann (z.&nbsp;B. Übertemperaturschutz), ist eine
+  unabhängige Schutzeinrichtung vorzusehen. Die Auswahl und Absicherung der angeschlossenen Verbraucher liegt beim
+  Betreiber.
+</div>
+
+<h2>Funktionsumfang</h2>
+<table>
+  <tr><th>Bereich</th><th>Funktion</th></tr>
+  <tr><td>Sensoren</td><td>Dallas DS18B20 (1-Wire, mehrere Sensoren an einem Pin), DHT11, AM2301/DHT21/DHT22; bis zu 32 Sensoren</td></tr>
+  <tr><td>Digitale IOs</td><td>Ausgänge und Eingänge, optional invertiert; Ausgänge manuell oder per Schwellwert-Regel mit Hysterese; bis zu 32 Einträge</td></tr>
+  <tr><td>Netzwerk</td><td>Ethernet (immer aktiv) und WLAN (über den ESP32-C6-Co-Prozessor), DHCP oder feste IP je Interface, mDNS-Hostname</td></tr>
+  <tr><td>Schnittstellen</td><td>Weboberfläche, REST-API, MQTT (optional TLS), SNMPv1/v2c-Agent</td></tr>
+  <tr><td>Uhrzeit</td><td>NTP-Synchronisation mit wählbarer Zeitzone</td></tr>
+  <tr><td>Wartung</td><td>Firmware- und Web-UI-Update über das Netzwerk (OTA) mit automatischem Rollback, optionales Login</td></tr>
+  <tr><td>Sprachen</td><td>Weboberfläche und Hilfe in Deutsch und Englisch, Tag-/Nachtmodus</td></tr>
+</table>
+
+<h2>Hardware-Überblick</h2>
+<p>
+  Das Board trägt einen ESP32-P4 (32&nbsp;MB Flash, 32&nbsp;MB PSRAM). WLAN/Bluetooth stellt ein onboard
+  ESP32-C6-Co-Prozessor bereit, Ethernet läuft über den internen MAC mit einem IP101-PHY und ist ohne Konfiguration
+  nutzbar. Sensoren und IOs können <strong>nur</strong> an die 28 GPIOs der 40-poligen Stiftleiste angeschlossen
+  werden; alle anderen GPIOs sind intern belegt (Ethernet, WLAN-Link, SD-Karte, USB, Display, Audio) und werden von
+  der Firmware abgelehnt. Alle GPIOs arbeiten mit 3,3&nbsp;V.
+</p>
+<table>
+  <tr><th>Pin</th><th>Signal</th><th>Pin</th><th>Signal</th><th>Pin</th><th>Signal</th><th>Pin</th><th>Signal</th></tr>
+  <tr><td>1</td><td>5V</td><td>11</td><td>GPIO22</td><td>21</td><td>GPIO1</td><td>31</td><td>GPIO54</td></tr>
+  <tr><td>2</td><td>3V3</td><td>12</td><td>GPIO21</td><td>22</td><td>GPIO2</td><td>32</td><td>GPIO26</td></tr>
+  <tr><td>3</td><td>5V</td><td>13</td><td>GND</td><td>23</td><td>GPIO36</td><td>33</td><td>GND</td></tr>
+  <tr><td>4</td><td>GPIO7 (I2C SDA)</td><td>14</td><td>GPIO20</td><td>24</td><td>GPIO0</td><td>34</td><td>GPIO48</td></tr>
+  <tr><td>5</td><td>GND</td><td>15</td><td>GPIO5</td><td>25</td><td>GPIO32</td><td>35</td><td>GPIO46</td></tr>
+  <tr><td>6</td><td>GPIO8 (I2C SCL)</td><td>16</td><td>GPIO6</td><td>26</td><td>GND</td><td>36</td><td>GPIO53</td></tr>
+  <tr><td>7</td><td>GPIO37 (Debug-UART TX)</td><td>17</td><td>GPIO4</td><td>27</td><td>GPIO25</td><td>37</td><td>GPIO27</td></tr>
+  <tr><td>8</td><td>GPIO23</td><td>18</td><td>3V3</td><td>28</td><td>GPIO24</td><td>38</td><td>GPIO47</td></tr>
+  <tr><td>9</td><td>GPIO38 (Debug-UART RX)</td><td>19</td><td>GND</td><td>29</td><td>GND</td><td>39</td><td>GPIO45</td></tr>
+  <tr><td>10</td><td>GND</td><td>20</td><td>GPIO3</td><td>30</td><td>GPIO33</td><td>40</td><td>GND</td></tr>
+</table>
+<p class="muted">GPIO7/8 (I2C) und GPIO37/38 (Debug-UART) bleiben zuweisbar, sind aber als Standardfunktion markiert. Im Web-UI werden bereits vergebene GPIOs durchgestrichen dargestellt.</p>
+
+<h1 id="inbetriebnahme">2. Inbetriebnahme</h1>
+<h2>Firmware aufspielen (Erstinstallation)</h2>
+<p>
+  Ein fertiges Board muss nur einmal per USB geflasht werden; alle weiteren Updates laufen über das Netzwerk
+  (Kapitel&nbsp;<a href="#updates">10</a>). Die fünf Dateien (<span class="mono">bootloader.bin</span>,
+  <span class="mono">partition-table.bin</span>, <span class="mono">ota_data_initial.bin</span>,
+  <span class="mono">temperaturwatch.bin</span>, <span class="mono">www.bin</span>) stehen auf der
+  <a href="https://github.com/okoebernik/TemperaturWatch/releases/latest">GitHub-Release-Seite</a>. Alle Dateien in
+  einen Ordner legen, das Board per USB anschließen und ausführen (Port anpassen, bei Bedarf
+  <span class="mono">python -m esptool</span> statt <span class="mono">esptool</span>):
+</p>
+<pre>python -m esptool --chip esp32p4 -b 460800 --before default_reset --after hard_reset write_flash \
+  --flash_mode dio --flash_size 32MB --flash_freq 40m \
+  0x2000 bootloader.bin  0x8000 partition-table.bin  0x10000 ota_data_initial.bin \
+  0x20000 temperaturwatch.bin  0x820000 www.bin</pre>
+<div class="callout warn">
+  <strong class="label">Richtigen Port wählen</strong>
+  Sind mehrere ESP32-Geräte am Rechner angeschlossen, vor dem Flashen die Identität des Ziels prüfen
+  (<span class="mono">esptool chip_id</span> bzw. MAC-Adresse), damit nicht ein falsches Gerät überschrieben wird.
+</div>
+
+<h2>Gerät im Netzwerk finden</h2>
+<ol>
+  <li>Ethernet-Kabel anschließen (der Anschluss unterstützt PoE; alternativ das Board anderweitig mit Spannung versorgen). Das Gerät bezieht seine Adresse per <strong>DHCP</strong>.</li>
+  <li>Die Weboberfläche ist unter <span class="mono">http://temperaturwatch.local/</span> erreichbar (mDNS-Hostname, unter „Netzwerk" änderbar). Funktioniert mDNS im Netz nicht, die vergebene IP-Adresse in der DHCP-Liste des Routers/Servers nachsehen oder aus dem seriellen Log (115200&nbsp;Baud) ablesen.</li>
+  <li>Das Web-UI ist ab Werk <strong>ohne Passwort</strong> erreichbar – siehe Kapitel&nbsp;<a href="#sicherheit">11</a>.</li>
+</ol>
+
+<h2>Erste Schritte</h2>
+<div class="step"><span class="num">1</span><div>Weboberfläche öffnen, oben rechts die Sprache wählen (Englisch ist Standard).</div></div>
+<div class="step"><span class="num">2</span><div>Unter <strong>Netzwerk</strong> bei Bedarf WLAN-Zugangsdaten und Hostname eintragen, ggf. eine feste IP vergeben (nur 2,4-GHz-Netze).</div></div>
+<div class="step"><span class="num">3</span><div>Unter <strong>Sensoren</strong> die Sensoren anlegen, unter <strong>IOs</strong> Ausgänge/Eingänge und Regeln.</div></div>
+<div class="step"><span class="num">4</span><div>Unter <strong>MQTT</strong> und <strong>SNMP</strong> die Anbindung an Broker bzw. Monitoring-System einrichten.</div></div>
+<div class="step"><span class="num">5</span><div>Unter <strong>System</strong> Uhrzeit/Zeitzone prüfen und ein <strong>Login</strong> aktivieren.</div></div>
+
+<h1 id="weboberflaeche">3. Weboberfläche im Überblick</h1>
+<p>
+  Die Weboberfläche ist in der Firmware eingebaut und benötigt keine Cloud und keine Zusatzsoftware. Links befindet
+  sich die Navigation (Dashboard, Sensoren, IOs, Netzwerk, MQTT, SNMP, System, Hilfe), oben die
+  <strong>Statuszeile</strong>.
+</p>
+<figure>
+  <img src="screenshots/dashboard_de.png" alt="Dashboard der Weboberfläche">
+  <figcaption>Abbildung 1: Dashboard mit Statuszeile (oben) und Navigation (links)</figcaption>
+</figure>
+<table>
+  <tr><th>Element der Statuszeile</th><th>Bedeutung</th></tr>
+  <tr><td>Netzwerk</td><td>Zeigt <em>Ethernet</em>, <em>WLAN</em> oder <em>Ethernet + WLAN</em>, sobald das jeweilige Interface eine IP-Adresse hat, sonst <em>keine IP</em></td></tr>
+  <tr><td>MQTT</td><td><em>verbunden</em>, <em>getrennt</em> (aktiviert, aber ohne Broker-Verbindung) oder <em>deaktiviert</em></td></tr>
+  <tr><td>SNMP</td><td><em>aktiv</em>, <em>Neustart nötig</em> (aktiviert, aber noch nicht gestartet) oder <em>deaktiviert</em></td></tr>
+  <tr><td>Uhrzeit</td><td>Geräteuhrzeit in der eingestellten Zeitzone; <em>gedimmt</em> dargestellt, solange noch nicht per NTP synchronisiert (Tooltip mit Datum)</td></tr>
+  <tr><td>Sonnen-Symbol</td><td>Umschalter Tag-/Nachtmodus; die Wahl wird im Browser gespeichert</td></tr>
+  <tr><td>EN / DE</td><td>Sprache der Weboberfläche und der Hilfe; Auswahl wird im Browser gespeichert, <span class="mono">?lang=de</span> in der URL hat Vorrang</td></tr>
+</table>
+<p>Die <strong>Hilfe</strong> enthält die REST-API-, MQTT- und PRTG-Anleitungen direkt auf dem Gerät – auch ohne Internetzugang lesbar.</p>
+
+<h1 id="dashboard">4. Dashboard</h1>
+<p>
+  Das Dashboard zeigt alle Sensoren (Typ, GPIO, Bezeichnung, Messwert, Alter der Messung, Status) und alle IOs und
+  aktualisiert sich alle vier Sekunden. Ausgänge ohne Regel lassen sich direkt per Knopf ein- und ausschalten; bei
+  Ausgängen mit aktiver Schwellwert-Regel steht stattdessen die Regel („Automatisch: …") und manuelles Schalten ist
+  gesperrt.
+</p>
+<table>
+  <tr><th>Sensor-Status</th><th>Bedeutung</th></tr>
+  <tr><td>wartet</td><td>Noch keine Messung seit dem Start bzw. Anlegen</td></tr>
+  <tr><td>OK</td><td>Letzte Messung erfolgreich</td></tr>
+  <tr><td>Fehler</td><td>Letzte Messung fehlgeschlagen (Verkabelung, Sensor, Pull-up – siehe Kapitel&nbsp;<a href="#problembehebung">13</a>)</td></tr>
+</table>
+
+<h1 id="sensoren">5. Sensoren</h1>
+<figure>
+  <img src="screenshots/sensors_de.png" alt="Sensor-Liste">
+  <figcaption>Abbildung 2: Konfigurierte Sensoren</figcaption>
+</figure>
+<table>
+  <tr><th>Typ</th><th>Hinweise</th></tr>
+  <tr><td>Dallas DS18B20</td><td>1-Wire-Bus. <strong>Mehrere Dallas-Sensoren dürfen sich denselben GPIO teilen</strong> und werden über ihre ROM-ID unterschieden. Liefert nur Temperatur.</td></tr>
+  <tr><td>DHT11</td><td>Temperatur und Luftfeuchte, grobe Auflösung. Ein Sensor pro GPIO.</td></tr>
+  <tr><td>AM2301 / DHT21 / DHT22</td><td>Temperatur und Luftfeuchte, höhere Genauigkeit. Ein Sensor pro GPIO.</td></tr>
+</table>
+<h2>Sensor anlegen</h2>
+<figure>
+  <img src="screenshots/dialog_sensor_de.png" alt="Dialog Sensor hinzufügen">
+  <figcaption>Abbildung 3: Dialog „Sensor hinzufügen"</figcaption>
+</figure>
+<div class="step"><span class="num">1</span><div><strong>+ Sensor</strong> wählen, den <strong>Typ</strong> einstellen und eine <strong>Bezeichnung</strong> vergeben (max. 47 Zeichen). Aus der Bezeichnung wird die technische ID abgeleitet, die in MQTT-Topics und der REST-API verwendet wird.</div></div>
+<div class="step"><span class="num">2</span><div>Den <strong>GPIO</strong> der Stiftleiste anklicken. Durchgestrichene GPIOs sind bereits vergeben.</div></div>
+<div class="step"><span class="num">3</span><div>Nur Dallas: mit <strong>Bus scannen</strong> die am GPIO gefundenen ROM-IDs laden und den gewünschten Sensor wählen. Ohne Auswahl wird immer das erste gefundene Gerät gelesen – das ist nur bei <em>einem</em> Sensor am Bus sinnvoll.</div></div>
+<div class="step"><span class="num">4</span><div><strong>Poll-Intervall</strong> in Sekunden einstellen (Standard 10&nbsp;s, mindestens 2&nbsp;s) und speichern.</div></div>
+<div class="callout">
+  <strong class="label">Verkabelung</strong>
+  Sensoren mit 3,3&nbsp;V versorgen. Die Datenleitung benötigt in der Regel einen Pull-up (typisch 4,7&nbsp;kΩ nach 3V3);
+  viele Sensor-Module haben ihn bereits eingebaut. Bei langen Leitungen auf saubere Masseführung achten.
+</div>
+
+<h1 id="ios">6. Digitale IOs</h1>
+<figure>
+  <img src="screenshots/io_de.png" alt="IO-Liste">
+  <figcaption>Abbildung 4: Konfigurierte IOs</figcaption>
+</figure>
+<table>
+  <tr><th>Einstellung</th><th>Bedeutung</th></tr>
+  <tr><td>Typ</td><td><em>Digitaler Ausgang</em> oder <em>Digitaler Eingang</em> (Eingänge nutzen einen internen Pull-up, ohne Entprellung)</td></tr>
+  <tr><td>Invertiert (active-low)</td><td>Kehrt die Logik um; „EIN" entspricht dann einem Low-Pegel am Pin</td></tr>
+  <tr><td>Start-Zustand: EIN</td><td>Zustand eines Ausgangs direkt nach dem Booten</td></tr>
+  <tr><td>Schwellwert-Regel</td><td>Schaltet einen Ausgang automatisch anhand eines Sensorwerts (siehe unten)</td></tr>
+</table>
+<div class="callout warn">
+  <strong class="label">Last schalten</strong>
+  Die GPIOs sind nicht für den direkten Betrieb von Relaisspulen oder anderen Lasten ausgelegt. Ausgänge immer über
+  ein Relais-Modul bzw. eine Treiberstufe betreiben.
+</div>
+<h2>Schwellwert-Regel mit Hysterese</h2>
+<figure>
+  <img src="screenshots/dialog_io_de.png" alt="Dialog IO hinzufügen mit Schwellwert-Regel">
+  <figcaption>Abbildung 5: Dialog „IO hinzufügen" mit aktivierter Schwellwert-Regel</figcaption>
+</figure>
+<p>
+  Eine Regel verknüpft einen <strong>Sensor</strong> und seinen <strong>Messwert</strong> (Temperatur oder
+  Luftfeuchte) mit einer <strong>Bedingung</strong> (&gt;, ≥, &lt;, ≤) und einem <strong>Schwellwert</strong>. Die
+  <strong>Hysterese</strong> verhindert schnelles Ein-/Ausschalten (Relais-Klappern) nahe am Schwellwert:
+</p>
+<div class="callout">
+  <strong class="label">Beispiel: Lüfter-Relais</strong>
+  Bedingung „&gt; größer als", Schwellwert 25&nbsp;°C, Hysterese 1&nbsp;°C: Der Ausgang schaltet <strong>ein</strong>, sobald
+  die Temperatur über 25&nbsp;°C steigt, und erst wieder <strong>aus</strong>, wenn sie 24&nbsp;°C erreicht oder
+  unterschreitet. Bei „&lt;"/„≤" gilt es umgekehrt (aus erst oberhalb von Schwellwert + Hysterese). Hysterese&nbsp;0
+  schaltet exakt am Schwellwert.
+</div>
+<p>
+  Solange eine Regel aktiv ist, übernimmt sie die Steuerung des Ausgangs; manuelles Schalten (Web-UI, REST-API,
+  MQTT) wird abgelehnt. Liefert der Sensor keine gültige Messung, ändert die Regel den Ausgang nicht. Um manuell zu
+  schalten, die Regel entfernen.
+</p>
+
+<h1 id="netzwerk">7. Netzwerk</h1>
+<figure>
+  <img src="screenshots/network_de.png" alt="Netzwerk-Seite">
+  <figcaption>Abbildung 6: Netzwerk – Status, WLAN und statische IP</figcaption>
+</figure>
+<p>
+  Das <strong>Status</strong>-Panel zeigt je Interface den Verbindungsstatus mit der aktuellen IP-Adresse sowie den
+  mDNS-Hostnamen. Ethernet und WLAN können gleichzeitig aktiv sein und haben dann getrennte Adressen.
+</p>
+<table>
+  <tr><th>Einstellung</th><th>Bedeutung</th></tr>
+  <tr><td>SSID / Passwort</td><td>Zugangsdaten für das WLAN (nur 2,4&nbsp;GHz). Leeres Passwortfeld = bisheriges Passwort bleibt erhalten. Ohne SSID bleibt WLAN inaktiv.</td></tr>
+  <tr><td>Hostname (mDNS)</td><td>Das Gerät ist unter <span class="mono">http://&lt;hostname&gt;.local/</span> erreichbar (max. 31 Zeichen)</td></tr>
+  <tr><td>Statische IP</td><td>Je Interface getrennt aktivierbar: IP-Adresse, Subnetzmaske, Gateway, optional DNS-Server. Deaktiviert = DHCP.</td></tr>
+</table>
+<p>
+  <strong>Speichern &amp; neu starten</strong> speichert die Einstellungen und startet das Gerät neu – Netzwerk-Änderungen
+  wirken erst nach dem Neustart.
+</p>
+<div class="callout warn">
+  <strong class="label">Gefahr: Gerät nicht mehr erreichbar</strong>
+  Eine falsche Kombination aus IP-Adresse, Subnetzmaske und Gateway macht das Gerät nach dem Neustart über das Netzwerk
+  unerreichbar (Web-UI, REST-API, MQTT und SNMP hängen am selben Interface). Werte vor dem Speichern sorgfältig prüfen
+  und niemals dieselbe feste IP für Ethernet und WLAN im selben Netz vergeben. Wiederherstellung dann nur über eine
+  serielle Verbindung (Neu-Flashen, siehe Kapitel&nbsp;<a href="#updates">10</a>).
+</div>
+
+<h1 id="mqtt">8. MQTT</h1>
+<figure>
+  <img src="screenshots/mqtt_de.png" alt="MQTT-Seite">
+  <figcaption>Abbildung 7: MQTT-Einstellungen</figcaption>
+</figure>
+<div class="step"><span class="num">1</span><div><strong>Aktiviert</strong> einschalten und die <strong>Broker-URI</strong> eintragen (<span class="mono">mqtt://host:1883</span> oder <span class="mono">mqtts://host:8883</span>).</div></div>
+<div class="step"><span class="num">2</span><div>Falls nötig Benutzername/Passwort (leeres Passwort = unverändert), <strong>Basis-Topic</strong> (Standard <span class="mono">temperaturwatch</span>) und Publish-Intervall (Standard 30&nbsp;s, mindestens 5&nbsp;s) setzen. Bei mehreren Geräten an einem Broker je Gerät ein eigenes Basis-Topic vergeben.</div></div>
+<div class="step"><span class="num">3</span><div>Für <span class="mono">mqtts://</span> das CA-Zertifikat des Brokers (PEM) einfügen. Client-Zertifikate (mTLS) werden nicht unterstützt.</div></div>
+<div class="step"><span class="num">4</span><div>Speichern – die Verbindung wird <strong>sofort</strong> neu aufgebaut, ein Neustart ist nicht nötig. Das Badge zeigt den Status.</div></div>
+<table>
+  <tr><th>Topic (unter Basis-Topic)</th><th>Richtung</th><th>Inhalt</th></tr>
+  <tr><td><span class="mono">&lt;base&gt;/status</span></td><td>Gerät → Broker</td><td><em>online</em> / <em>offline</em> (retained, Last Will)</td></tr>
+  <tr><td><span class="mono">&lt;base&gt;/sensor/&lt;id&gt;/temperature_c</span></td><td>Gerät → Broker</td><td>Temperatur, z.&nbsp;B. <span class="mono">21.50</span></td></tr>
+  <tr><td><span class="mono">&lt;base&gt;/sensor/&lt;id&gt;/humidity_pct</span></td><td>Gerät → Broker</td><td>Luftfeuchte (nur DHT/AM2301)</td></tr>
+  <tr><td><span class="mono">&lt;base&gt;/io/&lt;id&gt;/state</span></td><td>Gerät → Broker</td><td><em>ON</em> / <em>OFF</em> (retained)</td></tr>
+  <tr><td><span class="mono">&lt;base&gt;/io/&lt;id&gt;/set</span></td><td>Broker → Gerät</td><td><em>ON</em>/<em>OFF</em>/<em>1</em>/<em>0</em>/<em>true</em>/<em>false</em> schaltet einen Ausgang (nicht bei aktiver Regel)</td></tr>
+</table>
+<p>Details und Beispiele (Home Assistant, Node-RED, TLS) enthält die MQTT-Anleitung in der Hilfe bzw. unter <span class="mono">docs/MQTT_SETUP.md</span>.</p>
+
+<h1 id="snmp">9. SNMP und Monitoring</h1>
+<figure>
+  <img src="screenshots/snmp_de.png" alt="SNMP-Seite">
+  <figcaption>Abbildung 8: SNMP-Einstellungen</figcaption>
+</figure>
+<p>
+  Der SNMPv1/v2c-Agent lauscht auf UDP-Port 161. <strong>Das Aktivieren oder Deaktivieren erfordert einen Neustart</strong>;
+  eine Änderung der Community oder der Systemangaben (sysName, sysContact, sysLocation) wirkt sofort. Die Standard-Community
+  ist <span class="mono">public</span> – für den Produktivbetrieb ändern.
+</p>
+<table>
+  <tr><th>OID (Basis <span class="mono">1.3.6.1.4.1.99999.1</span>)</th><th>Inhalt</th></tr>
+  <tr><td><span class="mono">.2.1.0</span></td><td>sensorCount</td></tr>
+  <tr><td><span class="mono">.2.2.1.{1..8}.&lt;n&gt;</span></td><td>sensorTable: Index, ID, Label, Typ, Temperatur×10, Feuchte×10 (−1 = n/a), gültig, Alter (s)</td></tr>
+  <tr><td><span class="mono">.3.1.0</span></td><td>ioCount</td></tr>
+  <tr><td><span class="mono">.3.2.1.{1..5}.&lt;n&gt;</span></td><td>ioTable: Index, ID, Label, Typ, Zustand</td></tr>
+  <tr><td><span class="mono">.1.1.0 … .1.5.0</span></td><td>Systemangaben (privat); zusätzlich die Standard-MIB-II-Gruppe <span class="mono">1.3.6.1.2.1.1.*</span></td></tr>
+</table>
+<div class="callout warn">
+  <strong class="label">Tabellenindex ist nicht stabil</strong>
+  Die Zeilennummern der Sensor- und IO-Tabelle ergeben sich aus der Reihenfolge der Konfiguration. Wird ein Eintrag aus
+  der Mitte gelöscht, rutschen die folgenden nach. Monitoring-Sensoren, die eine feste OID inklusive Zeilennummer abfragen
+  (z.&nbsp;B. PRTG „SNMP Custom Table"), zeigen danach u.&nbsp;U. die Werte eines anderen Sensors. Nach dem Löschen die
+  Monitoring-Sensoren prüfen bzw. neu anlegen.
+</div>
+<p>
+  <strong>Monitoring-Anbindung:</strong> Eine Schritt-für-Schritt-Anleitung für <strong>PRTG</strong> (ohne Plugin, mit
+  „SNMP Custom Table") liegt in der Hilfe bzw. unter <span class="mono">docs/PRTG_SETUP.md</span>; für <strong>CheckMK</strong>
+  gibt es ein fertiges Plugin unter <span class="mono">contrib/checkmk/</span>. Die Geräteerkennung funktioniert, weil
+  das Gerät neben der privaten MIB auch die Standard-MIB-II-Systemgruppe (inkl. sysObjectID) beantwortet.
+</p>
+
+<h1 id="system">10. System</h1>
+<figure>
+  <img src="screenshots/system_de.png" alt="System-Seite">
+  <figcaption>Abbildung 9: System – Informationen, Update, Uhrzeit und Login</figcaption>
+</figure>
+<h2>Informationen und Neustart</h2>
+<p>
+  Die Karten zeigen Firmware-Version und Build-Datum, Chip, Laufzeit und freien Heap. <strong>Neustart</strong> startet das
+  Gerät neu, die Konfiguration bleibt erhalten. <strong>Werkseinstellungen</strong> löscht Netzwerk-, MQTT-, SNMP-, Sensor-,
+  IO- und Login-Konfiguration und startet neu; die Uhrzeit-Einstellungen bleiben bestehen. Danach ist das Gerät wieder
+  ohne Passwort erreichbar.
+</p>
+<h2>Uhrzeit (NTP)</h2>
+<p>
+  Ab Werk ist NTP aktiv (Server <span class="mono">pool.ntp.org</span>, Zeitzone Europa/Berlin). Das Badge zeigt
+  <em>synchronisiert</em> oder <em>wartet auf Sync</em>. Die Zeitzone wird aus einer Liste gängiger Regionen gewählt, andere
+  über „Benutzerdefiniert" als POSIX-TZ-String (z.&nbsp;B. <span class="mono">CET-1CEST,M3.5.0,M10.5.0/3</span>). In Netzen ohne
+  Internetzugang einen internen NTP-Server eintragen; das Gerät benötigt Zugriff auf UDP-Port 123. Änderungen wirken sofort.
+</p>
+<h2>Login</h2>
+<p>
+  Aktiviert den Passwortschutz (HTTP-Basic-Auth) für Weboberfläche <em>und</em> REST-API. Ein Passwort muss gesetzt sein,
+  bevor das Login aktiviert werden kann. Änderungen wirken sofort; danach fragt der Browser nach den Zugangsdaten.
+</p>
+
+<h1 id="updates">11. Updates (OTA)</h1>
+<p>
+  Firmware und Web-UI werden unabhängig voneinander über das Netzwerk aktualisiert – im Web-UI unter
+  <strong>System → Firmware-Update</strong> oder per <span class="mono">curl</span>. Ein USB-Kabel ist nicht nötig.
+</p>
+<table>
+  <tr><th>Datei</th><th>Zweck</th><th>Verhalten</th></tr>
+  <tr><td><span class="mono">temperaturwatch.bin</span></td><td>App-Firmware</td><td>Wird in den inaktiven OTA-Slot geschrieben; danach startet das Gerät automatisch neu</td></tr>
+  <tr><td><span class="mono">www.bin</span></td><td>Web-UI und Hilfe</td><td>Wird direkt in die Web-Partition geschrieben; <strong>kein Neustart</strong>, das Web-UI ist währenddessen kurz nicht erreichbar</td></tr>
+</table>
+<pre>curl -X POST --data-binary @temperaturwatch.bin http://&lt;ip&gt;/api/system/ota
+curl -X POST --data-binary @www.bin             http://&lt;ip&gt;/api/system/ota-web</pre>
+<div class="step"><span class="num">1</span><div>Zuerst die <strong>Firmware</strong>, nach dem Neustart das <strong>Web-UI</strong> aktualisieren; beide stets aus demselben Release verwenden.</div></div>
+<div class="step"><span class="num">2</span><div>Browser-Seite neu laden (Strg+F5), damit die neue Oberfläche geladen wird.</div></div>
+<div class="callout">
+  <strong class="label">Automatischer Rollback</strong>
+  Startet die neue Firmware nicht sauber (Absturz oder Hänger vor dem Erreichen der Hauptschleife), kehrt der Bootloader
+  beim nächsten Start automatisch zur vorherigen Version zurück.
+</div>
+<div class="callout warn">
+  <strong class="label">Wiederherstellung per USB</strong>
+  Ist das Web-UI nach einem fehlgeschlagenen Web-UI-Update nicht mehr erreichbar oder lässt sich das Gerät im Netzwerk nicht
+  mehr erreichen, hilft nur das erneute Flashen über USB mit dem Befehl aus Kapitel&nbsp;<a href="#inbetriebnahme">2</a>.
+  Für einen vollständigen Neustart ohne Altkonfiguration vorher <span class="mono">esptool --chip esp32p4 erase_flash</span> ausführen.
+</div>
+
+<h1 id="sicherheit">12. Sicherheit und Betrieb</h1>
+<ul>
+  <li><strong>Login aktivieren</strong> (System → Login). Ab Werk ist kein Passwort gesetzt, damit man nach einem Werksreset nicht ausgesperrt wird.</li>
+  <li>Die Weboberfläche und REST-API laufen über <strong>HTTP ohne Verschlüsselung</strong>; Basic-Auth überträgt Zugangsdaten unverschlüsselt. Das Gerät nur in vertrauenswürdigen Netzen betreiben bzw. per VLAN/Firewall abschotten.</li>
+  <li>Die <strong>SNMP-Community</strong> ändern; SNMPv1/v2c überträgt sie im Klartext und bietet keine Verschlüsselung (kein SNMPv3).</li>
+  <li><strong>MQTT mit TLS</strong> (<span class="mono">mqtts://</span>) und Authentifizierung nutzen, wenn der Broker außerhalb des lokalen Netzes liegt. Der Broker muss den Schreibzugriff auf <span class="mono">…/io/+/set</span> per ACL begrenzen – jeder, der dorthin publizieren darf, kann Ausgänge schalten.</li>
+  <li>Passwörter werden nie über REST-API oder Web-UI zurückgegeben; ein leeres Passwortfeld beim Speichern behält das bestehende. Das Login-Passwort wird nur als Hash gespeichert, WLAN- und MQTT-Passwörter liegen im Konfigurationsspeicher des Geräts.</li>
+</ul>
+
+<h2>Konfiguration sichern</h2>
+<p>
+  Es gibt keinen Export-Knopf; die Konfigurationen lassen sich aber per REST-API lesen und (für Sensoren und IOs) mit
+  <span class="mono">PUT</span> zurückspielen. Passwörter sind nicht enthalten und müssen bei einer Wiederherstellung
+  neu eingegeben werden.
+</p>
+<pre>for p in sensors/config io/config network/config mqtt/config snmp/config time/config; do
+  curl -s http://&lt;ip&gt;/api/$p -o "backup_$(echo $p | tr / _).json"
+done</pre>
+
+<h1 id="problembehebung">13. Problembehebung</h1>
+<table>
+  <tr><th>Symptom</th><th>Ursache / Abhilfe</th></tr>
+  <tr><td>Web-UI nicht erreichbar</td><td>Link-LED/Kabel prüfen; IP in der DHCP-Liste nachsehen oder <span class="mono">temperaturwatch.local</span> versuchen; nach einer falschen statischen IP ist nur ein Neu-Flashen per USB möglich</td></tr>
+  <tr><td>WLAN verbindet nicht</td><td>SSID/Passwort prüfen; nur 2,4-GHz-Netze; nach dem Speichern wurde das Gerät neu gestartet? Ohne SSID bleibt WLAN inaktiv</td></tr>
+  <tr><td>Sensor zeigt „Fehler" oder „wartet"</td><td>Verkabelung und 3,3-V-Versorgung prüfen, Pull-up an der Datenleitung, richtiger GPIO, Poll-Intervall mindestens 2&nbsp;s; Dallas: mit „Bus scannen" prüfen, ob der Sensor gefunden wird und die ROM-ID stimmt</td></tr>
+  <tr><td>Dallas-Bus-Scan findet nichts</td><td>Pull-up (4,7&nbsp;kΩ nach 3V3) fehlt, Daten-/Masseleitung vertauscht oder falscher GPIO</td></tr>
+  <tr><td>Ausgang lässt sich nicht schalten</td><td>Es ist eine Schwellwert-Regel aktiv (manuelles Schalten gesperrt) – Regel entfernen; bei invertierter Logik entspricht „EIN" einem Low-Pegel</td></tr>
+  <tr><td>MQTT bleibt „getrennt"</td><td>Broker-URI (<span class="mono">mqtt://</span>/<span class="mono">mqtts://</span>), Zugangsdaten, Firewall prüfen; bei TLS das passende CA-Zertifikat hinterlegen</td></tr>
+  <tr><td>SNMP antwortet nicht / „Neustart nötig"</td><td>Nach dem Aktivieren das Gerät neu starten; Community und UDP-Port 161 prüfen. Monitoring-Tools benötigen zur Erkennung die Standard-MIB-II-Systemgruppe – die ist vorhanden</td></tr>
+  <tr><td>Uhrzeit bleibt „wartet auf Sync"</td><td>NTP-Server vom Gerätenetz aus erreichbar? UDP 123 und DNS freigeben oder internen NTP-Server eintragen</td></tr>
+  <tr><td>Falsche Uhrzeit (Sommerzeit)</td><td>Zeitzone prüfen (POSIX-TZ-String mit Sommerzeit-Regel wählen)</td></tr>
+  <tr><td>Passwort vergessen</td><td>Eine Rücksetzung über die Oberfläche ist nicht möglich (auch der Werksreset ist geschützt). Per USB mit <span class="mono">erase_flash</span> löschen und neu flashen – dabei geht die gesamte Konfiguration verloren</td></tr>
+  <tr><td>Nach dem Update läuft die alte Version</td><td>Die neue Firmware hat sich nicht als gültig gemeldet und wurde automatisch zurückgerollt – Update wiederholen, ggf. per USB flashen</td></tr>
+</table>
+
+<h1 id="technische-daten">14. Technische Daten</h1>
+<table>
+  <tr><td>Hardware</td><td>Waveshare ESP32-P4-WIFI6-POE-ETH (ESP32-P4 Rev.&nbsp;v1.3, 32&nbsp;MB Flash, 32&nbsp;MB PSRAM, ESP32-C6 als WLAN-Co-Prozessor)</td></tr>
+  <tr><td>Netzwerk</td><td>Ethernet 10/100 (IP101-PHY), WLAN 2,4&nbsp;GHz; DHCP oder statische IP je Interface; mDNS</td></tr>
+  <tr><td>Anschlüsse für Sensoren/IOs</td><td>28 GPIOs der 40-poligen Stiftleiste, 3,3&nbsp;V</td></tr>
+  <tr><td>Kapazität</td><td>bis zu 32 Sensoren und 32 IO-Einträge; Poll-Intervall mindestens 2&nbsp;s (Standard 10&nbsp;s)</td></tr>
+  <tr><td>Ports (eingehend)</td><td>HTTP 80/TCP (Web-UI, REST-API), SNMP 161/UDP</td></tr>
+  <tr><td>Ports (ausgehend)</td><td>MQTT 1883/8883 TCP (konfigurierbar), NTP 123/UDP, DNS</td></tr>
+  <tr><td>MQTT</td><td>Publish-Intervall ab 5&nbsp;s (Standard 30&nbsp;s), Last Will, optional TLS</td></tr>
+  <tr><td>SNMP</td><td>v1/v2c, private MIB <span class="mono">1.3.6.1.4.1.99999.1</span> (Platzhalter-PEN) und MIB-II-Systemgruppe</td></tr>
+  <tr><td>Flash-Aufteilung</td><td>zwei OTA-App-Slots à 4&nbsp;MB, Web-UI-Partition 2&nbsp;MB, Konfigurationsspeicher (NVS)</td></tr>
+  <tr><td>Software</td><td>ESP-IDF v5.5.4, Weboberfläche in HTML/CSS/JavaScript ohne externe Abhängigkeiten</td></tr>
+  <tr><td>Sprachen</td><td>Deutsch / Englisch (Weboberfläche und Hilfe)</td></tr>
+</table>
+
+<h2>Weiterführende Dokumentation</h2>
+<ul>
+  <li><strong>REST-API-Referenz</strong> (alle Endpunkte mit Beispielen): in der Hilfe bzw. <span class="mono">docs/REST_API.md</span></li>
+  <li><strong>MQTT-Anleitung</strong>: <span class="mono">docs/MQTT_SETUP.md</span></li>
+  <li><strong>PRTG-Anleitung</strong>: <span class="mono">docs/PRTG_SETUP.md</span>; <strong>CheckMK-Plugin</strong>: <span class="mono">contrib/checkmk/</span></li>
+  <li>Quellcode und Releases: <a href="https://github.com/okoebernik/TemperaturWatch">github.com/okoebernik/TemperaturWatch</a></li>
+</ul>
+
+<p class="footer-note">Quellcode und Releases: github.com/okoebernik/TemperaturWatch</p>
+</body></html>

@@ -94,6 +94,10 @@ einem Release also dort hochzählen.
 7. Empfohlen: unter „System" einen Login (HTTP-Basic-Auth) einrichten, sobald das Gerät im Netzwerk
    erreichbar ist – das Web-UI/die REST-API ist standardmäßig **ohne** Login erreichbar.
 
+Ausführliche Anleitung für Administratoren (Inbetriebnahme, Netzwerk, MQTT, SNMP, Updates, Sicherheit,
+Problembehebung): [Administratorhandbuch (PDF)](docs/admin_handbuch_de.pdf) –
+English: [Administrator Manual (PDF)](docs/admin_manual_en.pdf).
+
 ## Architektur
 
 Jede Komponente unter `components/` ist eigenständig (Header + Implementierung + eigenes `CMakeLists.txt`) und
