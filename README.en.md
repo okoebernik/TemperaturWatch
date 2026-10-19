@@ -73,13 +73,17 @@ The first build automatically downloads several managed components via the ESP C
 the board carries an ESP32-P4 revision v1.3 (ESP-IDF otherwise assumes rev. ≥ v3.1 and the bootloader
 refuses to start with *"requires chip revision in range"*).
 
+The **firmware version** lives in `version.txt` in the project directory (ESP-IDF adopts it as the app
+version). It is shown in the web UI under "System" and returned by `GET /api/system/info` as
+`firmware_version` – so bump it there before a release.
+
 ## First-time setup
 
 1. Connect the board via Ethernet cable (works immediately, no configuration needed) **or** connect via
    serial and read the IP address from the log.
 2. Open the web UI in a browser: `http://<ip-address>/` or `http://temperaturwatch.local/` (mDNS
    hostname, changeable under "Network").
-3. Optionally set WiFi credentials under "Network" (takes effect only after a restart) and then unplug
+3. Optionally set WiFi credentials under "Network" ("Save & restart") and then unplug
    Ethernet.
 4. Add sensors under "Sensors" (for Dallas: select a GPIO, use "Scan bus" to find ROM IDs).
 5. Add digital IOs under "IOs", optionally with a threshold rule (sensor → output) including optional
@@ -142,13 +146,35 @@ to the web UI itself).
 Sensor/IO configuration is transferred as a complete array (PUT replaces the entire list) – the web UI
 loads the current list, changes one entry locally, and sends the complete array back.
 
+## Web UI
+
+The web interface follows the shared design of the other device products (e.g. Clinometer), so all devices
+look and work the same:
+
+| Page | Content |
+|---|---|
+| Dashboard | Live values of all sensors and IOs, outputs can be switched directly |
+| Sensors / IOs | Create, edit, and delete (incl. GPIO picker, bus scan, threshold rule) |
+| Network | Connection status with IP per interface, WiFi credentials, hostname, static IP (Ethernet/WiFi); "Save & restart" |
+| MQTT / SNMP | Configuration with a status badge |
+| System | Info cards (firmware version, chip, uptime, free heap), restart/factory reset, firmware update (app + web UI), time (NTP), login |
+| Help | REST API, MQTT, and PRTG guides (see below) |
+
+The **status bar** at the top shows network, MQTT, and SNMP status and the time on every page. To its right are
+the **day/night mode** toggle and the **language selector** (English is the default; the choice is stored in
+the browser, and `?lang=de` / `?lang=en` in the URL takes precedence).
+
+The company logo in the sidebar (`web/logo.png`) is deliberately not part of the repo: `index.html` hides the
+image when the file is missing. To use your own logo, drop a PNG (white on a transparent background – it is
+automatically rendered dark in light mode) into `web/` under that name.
+
 ## Help in the web UI
 
 The REST API, MQTT, and PRTG guides (`docs/REST_API.md`, `docs/MQTT_SETUP.md`, `docs/PRTG_SETUP.md`) are
 also available directly on the device under "Help" – as pre-rendered HTML fragments in
 `web/help/*.{de,en}.html` (generated from the Markdown sources via `scripts/md_to_help_html.py`, no
 Markdown parser needed at runtime on the device), including an English translation (`docs/*.en.md`) and
-switching via the same DE/EN language toggle as the rest of the web UI. When editing a `docs/*.md` file,
+switching via the same language selector in the status bar as the rest of the web UI. When editing a `docs/*.md` file,
 the corresponding HTML fragments must be regenerated manually:
 
 ```bash
@@ -165,9 +191,8 @@ python scripts/md_to_help_html.py docs/REST_API.en.md web/help/rest-api.en.html
 
 ## Time (NTP)
 
-The status bar at the top of the web UI continuously shows MQTT, SNMP, and network status, plus a live
-ticking clock. The time is synchronized via SNTP (default server `pool.ntp.org`, configurable under
-"Network" in the web UI), including a freely selectable timezone (POSIX TZ syntax, a curated selection of
+The status bar at the top of the web UI shows a live ticking clock. The time is synchronized via SNTP
+(default server `pool.ntp.org`, configurable under "System" → "Time (NTP)" in the web UI), including a freely selectable timezone (POSIX TZ syntax, a curated selection of
 common regions plus a free-text option for anything else). Enabled out of the box (default timezone
 Europe/Berlin) – no manual setup needed for the clock to run once a network connection exists. Changes
 take effect immediately, no restart needed. Details:
@@ -236,7 +261,7 @@ e.g. via curl:
 curl -X POST --data-binary @build/temperaturwatch.bin http://<ip>/api/system/ota
 ```
 
-In the web UI under "System" → "Firmware update" there's a file upload with a progress indicator for
+In the web UI under "System" → "Firmware update" there's a file upload with a percentage indicator for
 this. The image is written to whichever `ota_0`/`ota_1` slot is currently inactive; on success the device
 automatically restarts into it. If the new firmware doesn't start up cleanly (crash/hang before reaching
 the main loop), the bootloader automatically rolls back to the previous version thanks to
@@ -245,7 +270,7 @@ the main loop), the bootloader automatically rolls back to the previous version 
 > **Note:** `/api/system/ota` updates **only the firmware** (app partition). The web UI (`web/*`) lives in
 > a separate SPIFFS partition (`www`) and has its own OTA endpoint: `POST /api/system/ota-web` accepts the
 > `build/www.bin` produced by `idf.py build` and writes it directly to the `www` partition – no restart
-> needed, no USB required. The web UI provides a second upload area, "Web UI update", for this. Details on
+> needed, no USB required. In the web UI this is the second field, "Web UI image (www.bin)", in the same "Firmware update" panel. Details on
 > both endpoints: [docs/REST_API.en.md](docs/REST_API.en.md#post-apisystemota-web).
 
 ```bash
@@ -260,7 +285,8 @@ fixed IP address (IP, subnet mask, gateway, optional DNS server) – under "Netw
 [docs/REST_API.en.md](docs/REST_API.en.md#put-apinetworkconfig)). When static IP is enabled, the
 respective interface's DHCP client is stopped and the fixed address applied as soon as the link comes up;
 without it enabled, the interface behaves as before (DHCP). As with WiFi credentials/hostname, a change
-takes effect only after a restart.
+takes effect only after a restart – the web UI triggers it itself when saving ("Save & restart"), via the
+REST API it has to be triggered with `POST /api/system/reboot`.
 
 > ⚠️ An incorrectly entered address/gateway may make the device unreachable over the network – recovery
 > is then only possible via a serial connection (`idf.py -p <PORT> monitor` + factory reset via the web UI,

@@ -102,7 +102,7 @@ also zuerst den HTTP-Status prüfen, bevor der Body als JSON geparst wird.
 
 ### `GET /api/system/info`
 
-Geräte-, Firmware- und Verbindungsstatus. Wird auch vom Web-UI-Footer/Dashboard alle 10s gepollt.
+Geräte-, Firmware- und Verbindungsstatus. Wird vom Web-UI regelmäßig gepollt (Statuszeile alle 10s, System-Seite beim Öffnen).
 
 **Auth:** wie global konfiguriert · **Query-Parameter:** keine · **Body:** keiner
 
@@ -114,6 +114,9 @@ curl http://192.168.1.50/api/system/info
 **Beispiel-Response (200):**
 ```json
 {
+  "firmware_version": "1.1.0",
+  "build_date": "Oct 19 2026",
+  "build_time": "18:22:51",
   "idf_version": "v5.5.4",
   "chip": "esp32p4",
   "cores": 2,
@@ -123,6 +126,8 @@ curl http://192.168.1.50/api/system/info
   "has_ip": true,
   "wifi_connected": true,
   "eth_connected": false,
+  "eth_ip": "",
+  "wifi_ip": "192.168.1.50",
   "mqtt_enabled": true,
   "mqtt_connected": true,
   "snmp_enabled": true,
@@ -137,6 +142,9 @@ curl http://192.168.1.50/api/system/info
 
 | Feld | Typ | Beschreibung |
 |---|---|---|
+| `firmware_version` | string | Firmware-Version (aus `version.txt` im Projektverzeichnis, z.B. `1.1.0`) |
+| `build_date` | string | Build-Datum der Firmware, z.B. `Oct 19 2026` |
+| `build_time` | string | Build-Uhrzeit der Firmware, z.B. `18:22:51` |
 | `idf_version` | string | ESP-IDF-Version, mit der die Firmware gebaut wurde |
 | `chip` | string | Ziel-Chip (`esp32p4`) |
 | `cores` | number | Anzahl CPU-Kerne |
@@ -146,6 +154,8 @@ curl http://192.168.1.50/api/system/info
 | `has_ip` | bool | `true`, sobald Ethernet **oder** WLAN eine IP-Adresse hat |
 | `wifi_connected` | bool | WLAN-Station hat aktuell eine IP-Adresse |
 | `eth_connected` | bool | Ethernet-Interface hat aktuell eine IP-Adresse |
+| `eth_ip` | string | Aktuelle IPv4-Adresse des Ethernet-Interfaces, leer wenn keine vorhanden |
+| `wifi_ip` | string | Aktuelle IPv4-Adresse des WLAN-Interfaces, leer wenn keine vorhanden |
 | `mqtt_enabled` | bool | MQTT aktuell aktiviert (unabhängig vom Verbindungsstatus) |
 | `mqtt_connected` | bool | MQTT-Client aktuell mit dem Broker verbunden |
 | `snmp_enabled` | bool | SNMP aktuell aktiviert (Kurzform von `/api/snmp/config`) |

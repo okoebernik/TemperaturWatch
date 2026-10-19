@@ -74,8 +74,8 @@ temperaturwatch/io/lueftungsrelais/state ON
 ```
 
 If nothing appears, see [Troubleshooting](#troubleshooting). Alternatively, the Web UI shows a status badge
-under "MQTT" (**connected** / **disconnected** / **disabled**), and the live connection status is also shown
-under "System" → "Device Information".
+under "MQTT" (**connected** / **disconnected** / **disabled**); the live connection status is also shown in the
+status bar at the top of every page.
 
 ## 3. Topic Reference
 

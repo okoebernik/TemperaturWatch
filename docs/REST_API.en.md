@@ -102,7 +102,7 @@ code, check the HTTP status first before parsing the body as JSON.
 
 ### `GET /api/system/info`
 
-Device, firmware, and connection status. Also polled by the web UI footer/dashboard every 10s.
+Device, firmware, and connection status. Polled regularly by the web UI (status bar every 10s, System page when opened).
 
 **Auth:** as globally configured · **Query parameters:** none · **Body:** none
 
@@ -114,6 +114,9 @@ curl http://192.168.1.50/api/system/info
 **Example response (200):**
 ```json
 {
+  "firmware_version": "1.1.0",
+  "build_date": "Oct 19 2026",
+  "build_time": "18:22:51",
   "idf_version": "v5.5.4",
   "chip": "esp32p4",
   "cores": 2,
@@ -123,6 +126,8 @@ curl http://192.168.1.50/api/system/info
   "has_ip": true,
   "wifi_connected": true,
   "eth_connected": false,
+  "eth_ip": "",
+  "wifi_ip": "192.168.1.50",
   "mqtt_enabled": true,
   "mqtt_connected": true,
   "snmp_enabled": true,
@@ -137,6 +142,9 @@ curl http://192.168.1.50/api/system/info
 
 | Field | Type | Description |
 |---|---|---|
+| `firmware_version` | string | Firmware version (taken from `version.txt` in the project directory, e.g. `1.1.0`) |
+| `build_date` | string | Firmware build date, e.g. `Oct 19 2026` |
+| `build_time` | string | Firmware build time, e.g. `18:22:51` |
 | `idf_version` | string | ESP-IDF version the firmware was built with |
 | `chip` | string | Target chip (`esp32p4`) |
 | `cores` | number | Number of CPU cores |
@@ -146,6 +154,8 @@ curl http://192.168.1.50/api/system/info
 | `has_ip` | bool | `true` as soon as Ethernet **or** Wi-Fi has an IP address |
 | `wifi_connected` | bool | Wi-Fi station currently has an IP address |
 | `eth_connected` | bool | Ethernet interface currently has an IP address |
+| `eth_ip` | string | Current IPv4 address of the Ethernet interface, empty if none |
+| `wifi_ip` | string | Current IPv4 address of the WiFi interface, empty if none |
 | `mqtt_enabled` | bool | MQTT currently enabled (independent of connection status) |
 | `mqtt_connected` | bool | MQTT client currently connected to the broker |
 | `snmp_enabled` | bool | SNMP currently enabled (short form of `/api/snmp/config`) |

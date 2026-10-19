@@ -55,12 +55,15 @@ curl -u admin:geheim http://192.168.1.50/api/system/info</code></pre>
 <hr>
 <h2 id="system">System</h2>
 <h3 id="get-apisysteminfo"><code>GET /api/system/info</code></h3>
-<p>Geräte-, Firmware- und Verbindungsstatus. Wird auch vom Web-UI-Footer/Dashboard alle 10s gepollt.</p>
+<p>Geräte-, Firmware- und Verbindungsstatus. Wird vom Web-UI regelmäßig gepollt (Statuszeile alle 10s, System-Seite beim Öffnen).</p>
 <p><strong>Auth:</strong> wie global konfiguriert · <strong>Query-Parameter:</strong> keine · <strong>Body:</strong> keiner</p>
 <p><strong>Beispiel-Request:</strong></p>
 <pre><code class="language-bash">curl http://192.168.1.50/api/system/info</code></pre>
 <p><strong>Beispiel-Response (200):</strong></p>
 <pre><code class="language-json">{
+  &quot;firmware_version&quot;: &quot;1.1.0&quot;,
+  &quot;build_date&quot;: &quot;Oct 19 2026&quot;,
+  &quot;build_time&quot;: &quot;18:22:51&quot;,
   &quot;idf_version&quot;: &quot;v5.5.4&quot;,
   &quot;chip&quot;: &quot;esp32p4&quot;,
   &quot;cores&quot;: 2,
@@ -70,6 +73,8 @@ curl -u admin:geheim http://192.168.1.50/api/system/info</code></pre>
   &quot;has_ip&quot;: true,
   &quot;wifi_connected&quot;: true,
   &quot;eth_connected&quot;: false,
+  &quot;eth_ip&quot;: &quot;&quot;,
+  &quot;wifi_ip&quot;: &quot;192.168.1.50&quot;,
   &quot;mqtt_enabled&quot;: true,
   &quot;mqtt_connected&quot;: true,
   &quot;snmp_enabled&quot;: true,
@@ -86,6 +91,21 @@ curl -u admin:geheim http://192.168.1.50/api/system/info</code></pre>
 <th>Typ</th>
 <th>Beschreibung</th>
 </tr></thead><tbody>
+<tr>
+<td><code>firmware_version</code></td>
+<td>string</td>
+<td>Firmware-Version (aus <code>version.txt</code> im Projektverzeichnis, z.B. <code>1.1.0</code>)</td>
+</tr>
+<tr>
+<td><code>build_date</code></td>
+<td>string</td>
+<td>Build-Datum der Firmware, z.B. <code>Oct 19 2026</code></td>
+</tr>
+<tr>
+<td><code>build_time</code></td>
+<td>string</td>
+<td>Build-Uhrzeit der Firmware, z.B. <code>18:22:51</code></td>
+</tr>
 <tr>
 <td><code>idf_version</code></td>
 <td>string</td>
@@ -130,6 +150,16 @@ curl -u admin:geheim http://192.168.1.50/api/system/info</code></pre>
 <td><code>eth_connected</code></td>
 <td>bool</td>
 <td>Ethernet-Interface hat aktuell eine IP-Adresse</td>
+</tr>
+<tr>
+<td><code>eth_ip</code></td>
+<td>string</td>
+<td>Aktuelle IPv4-Adresse des Ethernet-Interfaces, leer wenn keine vorhanden</td>
+</tr>
+<tr>
+<td><code>wifi_ip</code></td>
+<td>string</td>
+<td>Aktuelle IPv4-Adresse des WLAN-Interfaces, leer wenn keine vorhanden</td>
 </tr>
 <tr>
 <td><code>mqtt_enabled</code></td>

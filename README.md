@@ -73,13 +73,17 @@ nötig): `esp_wifi_remote`, `esp_hosted`, `mdns`, `onewire_bus`, `ds18b20`.
 einen ESP32-P4 der Revision v1.3 bestückt (ESP-IDF geht sonst von Rev. ≥ v3.1 aus und der Bootloader verweigert
 den Start mit *"requires chip revision in range"*).
 
+Die **Firmware-Version** steht in `version.txt` im Projektverzeichnis (ESP-IDF übernimmt sie als App-Version). Sie
+wird im Web-UI unter „System" angezeigt und von `GET /api/system/info` als `firmware_version` geliefert – vor
+einem Release also dort hochzählen.
+
 ## Erstinbetriebnahme
 
 1. Board per Ethernet-Kabel verbinden (funktioniert sofort, keine Konfiguration nötig) **oder** seriell
    verbinden und die IP-Adresse aus dem Log ablesen.
 2. Web-UI im Browser öffnen: `http://<ip-adresse>/` oder `http://temperaturwatch.local/` (mDNS-Hostname,
    unter „Netzwerk" änderbar).
-3. Optional unter „Netzwerk" WLAN-Zugangsdaten hinterlegen (wirkt erst nach einem Neustart) und Ethernet
+3. Optional unter „Netzwerk" WLAN-Zugangsdaten hinterlegen („Speichern & neu starten") und Ethernet
    anschließend abstecken.
 4. Sensoren unter „Sensoren" anlegen (bei Dallas: GPIO wählen, „Bus scannen" nutzen, um ROM-IDs zu finden).
 5. Digitale IOs unter „IOs" anlegen, optional mit Schwellwert-Regel (Sensor → Ausgang) inkl. optionaler
@@ -142,13 +146,35 @@ das Web-UI selbst).
 Sensor-/IO-Konfiguration wird als vollständiges Array übertragen (PUT ersetzt die gesamte Liste) – das Web-UI
 lädt die aktuelle Liste, ändert einen Eintrag lokal und sendet das komplette Array zurück.
 
+## Web-UI
+
+Die Weboberfläche folgt dem gemeinsamen Design der übrigen Geräte-Produkte (z.B. Clinometer), damit alle
+Geräte gleich aussehen und bedient werden:
+
+| Seite | Inhalt |
+|---|---|
+| Dashboard | Live-Werte aller Sensoren und IOs, Ausgänge direkt schaltbar |
+| Sensoren / IOs | Anlegen, Bearbeiten und Löschen (inkl. GPIO-Auswahl, Bus-Scan, Schwellwert-Regel) |
+| Netzwerk | Verbindungsstatus mit IP je Interface, WLAN-Zugangsdaten, Hostname, statische IP (Ethernet/WLAN); „Speichern & neu starten" |
+| MQTT / SNMP | Konfiguration mit Status-Badge |
+| System | Info-Karten (Firmware-Version, Chip, Laufzeit, freier Heap), Neustart/Werkseinstellungen, Firmware-Update (App + Web-UI), Uhrzeit (NTP), Login |
+| Hilfe | REST-API-, MQTT- und PRTG-Anleitungen (siehe unten) |
+
+Die **Statuszeile** am oberen Rand zeigt auf jeder Seite Netzwerk-, MQTT- und SNMP-Status und die Uhrzeit.
+Rechts daneben liegen der **Tag-/Nachtmodus**-Schalter und die **Sprachauswahl** (Englisch ist Standard; die
+Wahl wird im Browser gespeichert, `?lang=de` bzw. `?lang=en` in der URL hat Vorrang).
+
+Das Firmenlogo in der Sidebar (`web/logo.png`) gehört bewusst nicht zum Repo: `index.html` blendet das Bild aus,
+wenn die Datei fehlt. Ein eigenes Logo (PNG, weiß auf transparentem Hintergrund – im hellen Modus wird es
+automatisch dunkel dargestellt) einfach unter diesem Namen in `web/` ablegen.
+
 ## Hilfe im Web-UI
 
 Die REST-API-, MQTT- und PRTG-Anleitungen (`docs/REST_API.md`, `docs/MQTT_SETUP.md`, `docs/PRTG_SETUP.md`)
 sind zusätzlich direkt im Gerät unter „Hilfe" verfügbar – als vorgerenderte HTML-Fragmente in
 `web/help/*.{de,en}.html` (aus den Markdown-Quellen erzeugt via `scripts/md_to_help_html.py`, kein
 Markdown-Parser zur Laufzeit auf dem Gerät nötig), inkl. englischer Übersetzung (`docs/*.en.md`) und
-Umschaltung über denselben DE/EN-Sprachschalter wie der Rest des Web-UI. Beim Bearbeiten eines `docs/*.md`
+Umschaltung über dieselbe Sprachauswahl in der Statuszeile wie der Rest des Web-UI. Beim Bearbeiten eines `docs/*.md`
 müssen die zugehörigen HTML-Fragmente manuell neu generiert werden:
 
 ```bash
@@ -165,9 +191,8 @@ python scripts/md_to_help_html.py docs/REST_API.en.md web/help/rest-api.en.html
 
 ## Uhrzeit (NTP)
 
-Statuszeile am oberen Rand des Web-UI zeigt durchgehend MQTT-, SNMP- und Netzwerk-Status sowie eine live
-tickende Uhrzeit. Die Zeit wird per SNTP synchronisiert (Standard-Server `pool.ntp.org`, unter „Netzwerk" im
-Web-UI konfigurierbar), inkl. frei wählbarer Zeitzone (POSIX-TZ-Syntax, kuratierte Auswahl gängiger Regionen
+Die Statuszeile am oberen Rand des Web-UI zeigt eine live tickende Uhrzeit. Die Zeit wird per SNTP
+synchronisiert (Standard-Server `pool.ntp.org`, unter „System" → „Uhrzeit (NTP)" im Web-UI konfigurierbar), inkl. frei wählbarer Zeitzone (POSIX-TZ-Syntax, kuratierte Auswahl gängiger Regionen
 plus Freitext-Option für alles andere). Ab Werk bereits aktiviert (Default-Zeitzone Europe/Berlin) – kein
 manueller Eingriff nötig, damit die Uhr läuft, sobald eine Netzwerkverbindung besteht. Änderungen wirken
 sofort, kein Neustart nötig. Details: [docs/REST_API.md → Uhrzeit (NTP)](docs/REST_API.md#uhrzeit-ntp).
@@ -233,7 +258,7 @@ JSON) – z.B. per curl:
 curl -X POST --data-binary @build/temperaturwatch.bin http://<ip>/api/system/ota
 ```
 
-Im Web-UI unter „System" → „Firmware-Update" steht dafür ein Datei-Upload mit Fortschrittsanzeige bereit. Das
+Im Web-UI unter „System" → „Firmware-Update" steht dafür ein Datei-Upload mit Prozentanzeige bereit. Das
 Image wird in den jeweils inaktiven `ota_0`/`ota_1`-Slot geschrieben; bei Erfolg startet das Gerät automatisch
 damit neu. Startet die neue Firmware nicht sauber (Absturz/Hänger vor Erreichen der Hauptschleife), rollt der
 Bootloader dank `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE` automatisch auf die vorherige Version zurück.
@@ -241,8 +266,8 @@ Bootloader dank `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE` automatisch auf die vorh
 > **Hinweis:** `/api/system/ota` aktualisiert **nur die Firmware** (App-Partition). Das Web-UI (`web/*`) liegt
 > in einer separaten SPIFFS-Partition (`www`) und hat einen eigenen OTA-Endpunkt: `POST /api/system/ota-web`
 > nimmt das per `idf.py build` erzeugte `build/www.bin` entgegen und schreibt es direkt in die `www`-Partition
-> – kein Neustart nötig, kein USB erforderlich. Im Web-UI steht dafür der zweite Upload-Bereich „Web-UI-Update"
-> bereit. Details zu beiden Endpunkten: [docs/REST_API.md](docs/REST_API.md#post-apisystemota-web).
+> – kein Neustart nötig, kein USB erforderlich. Im Web-UI ist das das zweite Feld „Web-UI-Image (www.bin)"
+> im selben Panel „Firmware-Update". Details zu beiden Endpunkten: [docs/REST_API.md](docs/REST_API.md#post-apisystemota-web).
 
 ```bash
 curl -X POST --data-binary @build/www.bin http://<ip>/api/system/ota-web
@@ -256,7 +281,8 @@ voneinander eine feste IP-Adresse (IP, Subnetzmaske, Gateway, optional DNS-Serve
 [docs/REST_API.md](docs/REST_API.md#put-apinetworkconfig)). Bei aktivierter statischer IP wird beim
 Verbindungsaufbau der DHCP-Client des jeweiligen Interfaces gestoppt und die feste Adresse eingetragen;
 ohne aktivierte statische IP verhält sich das Interface wie bisher (DHCP). Wie bei WLAN-Zugangsdaten/Hostname
-wirkt eine Änderung erst nach einem Neustart.
+wirkt eine Änderung erst nach einem Neustart – das Web-UI löst ihn beim Speichern („Speichern & neu starten")
+selbst aus, über die REST-API muss er per `POST /api/system/reboot` angestoßen werden.
 
 > ⚠️ Bei einer falsch eingetragenen Adresse/Gateway ist das Gerät über Netzwerk ggf. nicht mehr erreichbar –
 > Wiederherstellung dann nur über eine serielle Verbindung (`idf.py -p <PORT> monitor` + Werksreset über das
